@@ -1,10 +1,14 @@
 # gui.py
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
-import webbrowser
 import threading
 import queue
 from dotenv import load_dotenv
+import requests
+import io
+import pygame
+import webbrowser # <-- Make sure webbrowser is imported
+
 from utils.nlp_mood_detector import NlpMoodDetector
 from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
 
@@ -15,14 +19,17 @@ class ChatPlayerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("MoodPlayer Chat")
-        self.root.geometry("800x500") # Increased default size
-        self.root.minsize(600, 400) # Set a minimum size
+        self.root.geometry("800x500")
+        self.root.minsize(600, 400)
 
-        # --- 1. Switched to a responsive grid layout ---
+        # --- Initialize Pygame Mixer ---
+        pygame.mixer.init()
+
         self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=3) # Chat column will expand 3x more than player
+        self.root.grid_columnconfigure(0, weight=3)
         self.root.grid_columnconfigure(1, weight=1)
 
+        # ... (rest of the __init__ method remains the same) ...
         # --- Main Layout Frames ---
         self.chat_frame = tk.Frame(root, bg="#f0f0f0")
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
@@ -138,14 +145,34 @@ class ChatPlayerGUI:
         self.play_button.config(state=tk.NORMAL)
 
     def play_selected_song(self):
+        """Plays a preview in-app, or opens the full song in a browser as a fallback."""
         selected_indices = self.playlist_listbox.curselection()
         if not selected_indices:
             messagebox.showinfo("No Selection", "Please select a song from the list first.")
             return
-            
+
         selected_track = self.tracks_data[selected_indices[0]]
-        webbrowser.open(selected_track["url"])
-        self.add_message("Bot", f"Now playing: {selected_track['title']}")
+        preview_url = selected_track.get("preview_url")
+
+        if preview_url:
+            try:
+                # Stop any currently playing music
+                pygame.mixer.music.stop()
+                # Get the audio data from the URL
+                response = requests.get(preview_url, stream=True)
+                if response.status_code == 200:
+                    pygame.mixer.music.load(io.BytesIO(response.content))
+                    pygame.mixer.music.play()
+                    self.add_message("Bot", f"▶️ Playing preview: {selected_track['title']}")
+                else:
+                    messagebox.showerror("Download Error", "Could not fetch the song preview.")
+            except Exception as e:
+                messagebox.showerror("Playback Error", f"An error occurred: {e}")
+        else:
+            # Fallback to opening in browser if no preview is available
+            self.add_message("Bot", "No preview available. Opening full song in browser...")
+            webbrowser.open(selected_track["url"])
+
 
 if __name__ == "__main__":
     root = tk.Tk()

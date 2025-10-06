@@ -1,13 +1,12 @@
 # utils/spotify_utils.py
 import os
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials # <-- IMPORT a new authenticator
+from spotipy.oauth2 import SpotifyClientCredentials
 
 def get_spotify_client():
     """Authenticate using the Client Credentials Flow (no browser needed)."""
     print("Attempting to authenticate with Spotify using Client Credentials...")
     try:
-        # This is the new, simpler authentication method
         auth_manager = SpotifyClientCredentials(
             client_id=os.getenv("SPOTIPY_CLIENT_ID"),
             client_secret=os.getenv("SPOTIPY_CLIENT_SECRET")
@@ -28,10 +27,10 @@ def get_spotify_recommendations(sp, mood):
         return []
 
     print(f"🎧 Searching for '{mood}' mood songs on Spotify...")
-    query = f"genre: {mood}" # Using genre search can sometimes yield better results
+    query = f"genre:{mood}"
 
     try:
-        results = sp.search(q=query, type="track", limit=20) # Increased limit
+        results = sp.search(q=query, type="track", limit=20)
         tracks = []
         if not results["tracks"]["items"]:
             print("⚠️ Spotify returned 0 tracks for this query.")
@@ -41,7 +40,8 @@ def get_spotify_recommendations(sp, mood):
             tracks.append({
                 "title": item["name"],
                 "artist": item["artists"][0]["name"],
-                "uri": item["uri"] # We still need the URI for playback control
+                "url": item["external_urls"]["spotify"],
+                "preview_url": item["preview_url"]  # <-- Add this line
             })
         print(f"Found {len(tracks)} tracks.")
         return tracks
