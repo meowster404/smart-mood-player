@@ -5,9 +5,25 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 import joblib
 import neattext.functions as nfx
+import os
+
+# Define base directory to locate files easily
+BASE_DIR = "smart-mood-player"
+DATA_PATH = os.path.join(BASE_DIR, "data", "emotion_dataset_raw.csv")
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
+
+# Create models directory if it doesn't exist
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Load the dataset
-df = pd.read_csv("smart-mood-player\data\emotion_dataset_raw.csv") # Make sure you have this file
+try:
+    df = pd.read_csv(DATA_PATH)
+except FileNotFoundError:
+    print(f"Error: The dataset was not found at {DATA_PATH}")
+    print("Please make sure the 'emotion_dataset_raw.csv' file is in the correct directory.")
+    exit()
+
 
 # Data Cleaning
 df['Clean_Text'] = df['Text'].apply(nfx.remove_userhandles)
@@ -27,7 +43,7 @@ pipeline = Pipeline(steps=[
 pipeline.fit(Xfeatures, ylabels)
 
 # Save the model
-with open("smart-mood-player\models\emotion_classifier.pkl", "wb") as f:
+with open(MODEL_PATH, "wb") as f:
     joblib.dump(pipeline, f)
 
-print("✅ Model trained and saved as smart-mood-player\models\emotion_classifier.pkl")
+print(f"✅ Model trained and saved as {MODEL_PATH}")

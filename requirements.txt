@@ -5,3 +5,4 @@ spotipy
 SpeechRecognition
 python-dotenv
 pyaudio
+flask

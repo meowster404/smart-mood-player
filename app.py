@@ -6,64 +6,55 @@ import queue
 import io
 import pygame
 import webbrowser
-import requests
+import requests # Make sure 'requests' is imported
 from dotenv import load_dotenv
 
-from utils.nlp_mood_detector import NlpMoodDetector
-from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
+# Local imports are no longer needed here as the backend handles them
+# from utils.nlp_mood_detector import NlpMoodDetector
+# from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
 
-# Load environment variables from .env file
 load_dotenv()
 
 class ChatPlayerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Smart Mood Player")
+        self.root.title("Smart Mood Player (Frontend)")
         self.root.geometry("800x500")
         self.root.minsize(600, 400)
 
         pygame.mixer.init()
 
+        # --- GUI Setup (No changes here) ---
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=3)
         self.root.grid_columnconfigure(1, weight=1)
-
-        # --- Main Layout Frames ---
         self.chat_frame = tk.Frame(root, bg="#f0f0f0")
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.player_frame = tk.Frame(root)
         self.player_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
-
         self.chat_frame.grid_rowconfigure(0, weight=1)
         self.chat_frame.grid_columnconfigure(0, weight=1)
         self.player_frame.grid_rowconfigure(1, weight=1)
         self.player_frame.grid_columnconfigure(0, weight=1)
-
-        # --- Chat Window ---
         self.chat_window = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD, state='disabled', font=("Helvetica", 11))
         self.chat_window.grid(row=0, column=0, columnspan=2, sticky="nsew")
-
-        # --- Message Input ---
         self.message_entry = tk.Entry(self.chat_frame, font=("Helvetica", 11))
         self.message_entry.grid(row=1, column=0, sticky="ew", pady=(10, 0))
         self.message_entry.bind("<Return>", self.send_message)
         self.send_button = tk.Button(self.chat_frame, text="Send", command=self.send_message)
         self.send_button.grid(row=1, column=1, sticky="ew", pady=(10, 0), padx=(5, 0))
-
-        # --- Player/Playlist Side ---
         self.playlist_label = tk.Label(self.player_frame, text="🎵 Recommendations", font=("Helvetica", 12, "bold"))
         self.playlist_label.grid(row=0, column=0, sticky="w", pady=5)
         self.playlist_listbox = tk.Listbox(self.player_frame, height=15, selectbackground="#c3c3c3")
         self.playlist_listbox.grid(row=1, column=0, sticky="nsew")
         self.play_button = tk.Button(self.player_frame, text="▶️ Play Selected Song", command=self.play_selected_song, state=tk.DISABLED)
         self.play_button.grid(row=2, column=0, sticky="ew", pady=10)
-
-        self.spotify_queue = queue.Queue()
-        self.mood_detector = NlpMoodDetector()
+        
+        self.backend_queue = queue.Queue()
         self.tracks_data = []
 
         self.add_message("Bot", "Hello! Tell me how you're feeling or what you're in the mood for.")
-        self.check_spotify_queue()
+        self.check_backend_queue()
 
     def add_message(self, sender, message):
         self.chat_window.config(state='normal')
@@ -81,50 +72,58 @@ class ChatPlayerGUI:
         
         self.add_message("You", user_input)
         self.message_entry.delete(0, tk.END)
-        
-        predicted_mood = self.mood_detector.predict_mood(user_input)
-        self.add_message("Bot", f"I sense you're feeling '{predicted_mood}'. Searching for music on Spotify...")
+        self.add_message("Bot", "Thinking... Contacting the mood analysis service...")
         
         self.send_button.config(state=tk.DISABLED)
-        threading.Thread(target=self.fetch_spotify_data_thread, args=(predicted_mood,)).start()
+        # Call the new function to fetch data from the backend
+        threading.Thread(target=self.fetch_from_backend_thread, args=(user_input,)).start()
 
-    def fetch_spotify_data_thread(self, mood):
+    def fetch_from_backend_thread(self, text):
+        """Sends a request to the backend server and puts the response in a queue."""
+        backend_url = "http://127.0.0.1:5000/recommendations"
         try:
-            sp = get_spotify_client()
-            tracks = get_spotify_recommendations(sp, mood)
-            self.spotify_queue.put(tracks)
-        except Exception as e:
-            self.spotify_queue.put(f"Error: {e}")
+            response = requests.post(backend_url, json={"text": text}, timeout=10)
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+            self.backend_queue.put(response.json())
+        except requests.exceptions.RequestException as e:
+            error_message = f"Error: Could not connect to the backend at {backend_url}. Please ensure it is running."
+            print(f"{error_message}\nDetails: {e}")
+            self.backend_queue.put({"error": error_message})
 
-    def check_spotify_queue(self):
+    def check_backend_queue(self):
+        """Checks the queue for results from the backend thread."""
         try:
-            result = self.spotify_queue.get(block=False)
+            result = self.backend_queue.get(block=False)
             self.update_ui_with_results(result)
         except queue.Empty:
             pass
         finally:
-            self.root.after(100, self.check_spotify_queue)
+            self.root.after(100, self.check_backend_queue)
 
     def update_ui_with_results(self, result):
         self.send_button.config(state=tk.NORMAL)
 
-        if isinstance(result, str):
-            messagebox.showerror("Spotify Error", result)
-            self.add_message("Bot", "Sorry, I ran into an error connecting to Spotify.")
+        # Handle any errors returned from the backend
+        if "error" in result:
+            messagebox.showerror("Backend Error", result["error"])
+            self.add_message("Bot", "Sorry, I ran into an error getting recommendations.")
             return
 
-        self.tracks_data = result
-        self.playlist_listbox.delete(0, tk.END)
+        # Extract data from the backend's JSON response
+        predicted_mood = result.get('mood', 'unknown')
+        self.tracks_data = result.get('tracks', [])
         
+        self.add_message("Bot", f"I sense you're feeling '{predicted_mood}'. Here are some songs I found for you!")
+        
+        self.playlist_listbox.delete(0, tk.END)
         if not self.tracks_data:
-            self.add_message("Bot", "I couldn't find any tracks for that mood. Please try something else!")
+            self.add_message("Bot", "I couldn't find any tracks for that mood. Try something else!")
             self.play_button.config(state=tk.DISABLED)
             return
 
         for track in self.tracks_data:
             self.playlist_listbox.insert(tk.END, f"{track['title']} - {track['artist']}")
         
-        self.add_message("Bot", "I've found some songs for you! Select one from the list and press play.")
         self.play_button.config(state=tk.NORMAL)
 
     def play_selected_song(self):
