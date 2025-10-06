@@ -7,7 +7,7 @@ import joblib
 import neattext.functions as nfx
 
 # Load the dataset
-df = pd.read_csv("data/emotion_dataset_raw.csv") # Make sure you have this file
+df = pd.read_csv("smart-mood-player\data\emotion_dataset_raw.csv") # Make sure you have this file
 
 # Data Cleaning
 df['Clean_Text'] = df['Text'].apply(nfx.remove_userhandles)
@@ -27,7 +27,7 @@ pipeline = Pipeline(steps=[
 pipeline.fit(Xfeatures, ylabels)
 
 # Save the model
-with open("models/emotion_classifier.pkl", "wb") as f:
+with open("smart-mood-player\models\emotion_classifier.pkl", "wb") as f:
     joblib.dump(pipeline, f)
 
-print("✅ Model trained and saved as models/emotion_classifier.pkl")
+print("✅ Model trained and saved as smart-mood-player\models\emotion_classifier.pkl")
