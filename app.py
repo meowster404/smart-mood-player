@@ -1,13 +1,13 @@
-# gui.py
+# app.py
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import threading
 import queue
-from dotenv import load_dotenv
-import requests
 import io
 import pygame
-import webbrowser # <-- Make sure webbrowser is imported
+import webbrowser
+import requests
+from dotenv import load_dotenv
 
 from utils.nlp_mood_detector import NlpMoodDetector
 from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
@@ -18,28 +18,26 @@ load_dotenv()
 class ChatPlayerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("MoodPlayer Chat")
+        self.root.title("Smart Mood Player")
         self.root.geometry("800x500")
         self.root.minsize(600, 400)
 
-        # --- Initialize Pygame Mixer ---
         pygame.mixer.init()
 
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=3)
         self.root.grid_columnconfigure(1, weight=1)
 
-        # ... (rest of the __init__ method remains the same) ...
         # --- Main Layout Frames ---
         self.chat_frame = tk.Frame(root, bg="#f0f0f0")
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-
         self.player_frame = tk.Frame(root)
         self.player_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
 
-        # Configure resizing for chat frame internals
         self.chat_frame.grid_rowconfigure(0, weight=1)
         self.chat_frame.grid_columnconfigure(0, weight=1)
+        self.player_frame.grid_rowconfigure(1, weight=1)
+        self.player_frame.grid_columnconfigure(0, weight=1)
 
         # --- Chat Window ---
         self.chat_window = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD, state='disabled', font=("Helvetica", 11))
@@ -49,30 +47,22 @@ class ChatPlayerGUI:
         self.message_entry = tk.Entry(self.chat_frame, font=("Helvetica", 11))
         self.message_entry.grid(row=1, column=0, sticky="ew", pady=(10, 0))
         self.message_entry.bind("<Return>", self.send_message)
-        
         self.send_button = tk.Button(self.chat_frame, text="Send", command=self.send_message)
         self.send_button.grid(row=1, column=1, sticky="ew", pady=(10, 0), padx=(5, 0))
 
-        # Configure resizing for player frame internals
-        self.player_frame.grid_rowconfigure(1, weight=1)
-        self.player_frame.grid_columnconfigure(0, weight=1)
-        
         # --- Player/Playlist Side ---
         self.playlist_label = tk.Label(self.player_frame, text="🎵 Recommendations", font=("Helvetica", 12, "bold"))
         self.playlist_label.grid(row=0, column=0, sticky="w", pady=5)
-        
         self.playlist_listbox = tk.Listbox(self.player_frame, height=15, selectbackground="#c3c3c3")
         self.playlist_listbox.grid(row=1, column=0, sticky="nsew")
-
         self.play_button = tk.Button(self.player_frame, text="▶️ Play Selected Song", command=self.play_selected_song, state=tk.DISABLED)
         self.play_button.grid(row=2, column=0, sticky="ew", pady=10)
-        
-        # --- 2. Setup for non-blocking Spotify requests ---
+
         self.spotify_queue = queue.Queue()
         self.mood_detector = NlpMoodDetector()
         self.tracks_data = []
 
-        self.add_message("Bot", "Hello! Tell me how you're feeling or what you're doing.")
+        self.add_message("Bot", "Hello! Tell me how you're feeling or what you're in the mood for.")
         self.check_spotify_queue()
 
     def add_message(self, sender, message):
@@ -93,16 +83,12 @@ class ChatPlayerGUI:
         self.message_entry.delete(0, tk.END)
         
         predicted_mood = self.mood_detector.predict_mood(user_input)
-        self.add_message("Bot", f"Got it! Searching for '{predicted_mood}' music on Spotify...")
+        self.add_message("Bot", f"I sense you're feeling '{predicted_mood}'. Searching for music on Spotify...")
         
-        # Disable button to prevent multiple requests
         self.send_button.config(state=tk.DISABLED)
-        
-        # Start the Spotify search in a separate thread
         threading.Thread(target=self.fetch_spotify_data_thread, args=(predicted_mood,)).start()
 
     def fetch_spotify_data_thread(self, mood):
-        """This function runs in a background thread to avoid freezing the GUI."""
         try:
             sp = get_spotify_client()
             tracks = get_spotify_recommendations(sp, mood)
@@ -111,7 +97,6 @@ class ChatPlayerGUI:
             self.spotify_queue.put(f"Error: {e}")
 
     def check_spotify_queue(self):
-        """Periodically check the queue for results from the background thread."""
         try:
             result = self.spotify_queue.get(block=False)
             self.update_ui_with_results(result)
@@ -121,13 +106,11 @@ class ChatPlayerGUI:
             self.root.after(100, self.check_spotify_queue)
 
     def update_ui_with_results(self, result):
-        """Update the GUI with the results. This runs on the main thread."""
-        # Re-enable the send button
         self.send_button.config(state=tk.NORMAL)
 
-        if isinstance(result, str): # Check if the result is an error message
+        if isinstance(result, str):
             messagebox.showerror("Spotify Error", result)
-            self.add_message("Bot", "Sorry, I ran into an error trying to connect to Spotify.")
+            self.add_message("Bot", "Sorry, I ran into an error connecting to Spotify.")
             return
 
         self.tracks_data = result
@@ -145,7 +128,6 @@ class ChatPlayerGUI:
         self.play_button.config(state=tk.NORMAL)
 
     def play_selected_song(self):
-        """Plays a preview in-app, or opens the full song in a browser as a fallback."""
         selected_indices = self.playlist_listbox.curselection()
         if not selected_indices:
             messagebox.showinfo("No Selection", "Please select a song from the list first.")
@@ -156,9 +138,7 @@ class ChatPlayerGUI:
 
         if preview_url:
             try:
-                # Stop any currently playing music
                 pygame.mixer.music.stop()
-                # Get the audio data from the URL
                 response = requests.get(preview_url, stream=True)
                 if response.status_code == 200:
                     pygame.mixer.music.load(io.BytesIO(response.content))
@@ -169,7 +149,6 @@ class ChatPlayerGUI:
             except Exception as e:
                 messagebox.showerror("Playback Error", f"An error occurred: {e}")
         else:
-            # Fallback to opening in browser if no preview is available
             self.add_message("Bot", "No preview available. Opening full song in browser...")
             webbrowser.open(selected_track["url"])
 
