@@ -1,0 +1,153 @@
+# gui.py
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
+import webbrowser
+import threading
+import queue
+from dotenv import load_dotenv
+from utils.nlp_mood_detector import NlpMoodDetector
+from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
+
+# Load environment variables from .env file
+load_dotenv()
+
+class ChatPlayerGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("MoodPlayer Chat")
+        self.root.geometry("800x500") # Increased default size
+        self.root.minsize(600, 400) # Set a minimum size
+
+        # --- 1. Switched to a responsive grid layout ---
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=3) # Chat column will expand 3x more than player
+        self.root.grid_columnconfigure(1, weight=1)
+
+        # --- Main Layout Frames ---
+        self.chat_frame = tk.Frame(root, bg="#f0f0f0")
+        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        self.player_frame = tk.Frame(root)
+        self.player_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
+
+        # Configure resizing for chat frame internals
+        self.chat_frame.grid_rowconfigure(0, weight=1)
+        self.chat_frame.grid_columnconfigure(0, weight=1)
+
+        # --- Chat Window ---
+        self.chat_window = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD, state='disabled', font=("Helvetica", 11))
+        self.chat_window.grid(row=0, column=0, columnspan=2, sticky="nsew")
+
+        # --- Message Input ---
+        self.message_entry = tk.Entry(self.chat_frame, font=("Helvetica", 11))
+        self.message_entry.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        self.message_entry.bind("<Return>", self.send_message)
+        
+        self.send_button = tk.Button(self.chat_frame, text="Send", command=self.send_message)
+        self.send_button.grid(row=1, column=1, sticky="ew", pady=(10, 0), padx=(5, 0))
+
+        # Configure resizing for player frame internals
+        self.player_frame.grid_rowconfigure(1, weight=1)
+        self.player_frame.grid_columnconfigure(0, weight=1)
+        
+        # --- Player/Playlist Side ---
+        self.playlist_label = tk.Label(self.player_frame, text="🎵 Recommendations", font=("Helvetica", 12, "bold"))
+        self.playlist_label.grid(row=0, column=0, sticky="w", pady=5)
+        
+        self.playlist_listbox = tk.Listbox(self.player_frame, height=15, selectbackground="#c3c3c3")
+        self.playlist_listbox.grid(row=1, column=0, sticky="nsew")
+
+        self.play_button = tk.Button(self.player_frame, text="▶️ Play Selected Song", command=self.play_selected_song, state=tk.DISABLED)
+        self.play_button.grid(row=2, column=0, sticky="ew", pady=10)
+        
+        # --- 2. Setup for non-blocking Spotify requests ---
+        self.spotify_queue = queue.Queue()
+        self.mood_detector = NlpMoodDetector()
+        self.tracks_data = []
+
+        self.add_message("Bot", "Hello! Tell me how you're feeling or what you're doing.")
+        self.check_spotify_queue()
+
+    def add_message(self, sender, message):
+        self.chat_window.config(state='normal')
+        if sender == "You":
+            self.chat_window.insert(tk.END, f"You: {message}\n", 'user_tag')
+        else:
+            self.chat_window.insert(tk.END, f"Bot: {message}\n\n", 'bot_tag')
+        self.chat_window.config(state='disabled')
+        self.chat_window.yview(tk.END)
+
+    def send_message(self, event=None):
+        user_input = self.message_entry.get()
+        if not user_input:
+            return
+        
+        self.add_message("You", user_input)
+        self.message_entry.delete(0, tk.END)
+        
+        predicted_mood = self.mood_detector.predict_mood(user_input)
+        self.add_message("Bot", f"Got it! Searching for '{predicted_mood}' music on Spotify...")
+        
+        # Disable button to prevent multiple requests
+        self.send_button.config(state=tk.DISABLED)
+        
+        # Start the Spotify search in a separate thread
+        threading.Thread(target=self.fetch_spotify_data_thread, args=(predicted_mood,)).start()
+
+    def fetch_spotify_data_thread(self, mood):
+        """This function runs in a background thread to avoid freezing the GUI."""
+        try:
+            sp = get_spotify_client()
+            tracks = get_spotify_recommendations(sp, mood)
+            self.spotify_queue.put(tracks)
+        except Exception as e:
+            self.spotify_queue.put(f"Error: {e}")
+
+    def check_spotify_queue(self):
+        """Periodically check the queue for results from the background thread."""
+        try:
+            result = self.spotify_queue.get(block=False)
+            self.update_ui_with_results(result)
+        except queue.Empty:
+            pass
+        finally:
+            self.root.after(100, self.check_spotify_queue)
+
+    def update_ui_with_results(self, result):
+        """Update the GUI with the results. This runs on the main thread."""
+        # Re-enable the send button
+        self.send_button.config(state=tk.NORMAL)
+
+        if isinstance(result, str): # Check if the result is an error message
+            messagebox.showerror("Spotify Error", result)
+            self.add_message("Bot", "Sorry, I ran into an error trying to connect to Spotify.")
+            return
+
+        self.tracks_data = result
+        self.playlist_listbox.delete(0, tk.END)
+        
+        if not self.tracks_data:
+            self.add_message("Bot", "I couldn't find any tracks for that mood. Please try something else!")
+            self.play_button.config(state=tk.DISABLED)
+            return
+
+        for track in self.tracks_data:
+            self.playlist_listbox.insert(tk.END, f"{track['title']} - {track['artist']}")
+        
+        self.add_message("Bot", "I've found some songs for you! Select one from the list and press play.")
+        self.play_button.config(state=tk.NORMAL)
+
+    def play_selected_song(self):
+        selected_indices = self.playlist_listbox.curselection()
+        if not selected_indices:
+            messagebox.showinfo("No Selection", "Please select a song from the list first.")
+            return
+            
+        selected_track = self.tracks_data[selected_indices[0]]
+        webbrowser.open(selected_track["url"])
+        self.add_message("Bot", f"Now playing: {selected_track['title']}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ChatPlayerGUI(root)
+    root.mainloop()
