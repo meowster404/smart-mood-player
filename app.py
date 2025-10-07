@@ -1,121 +1,161 @@
-# app.py
-import tkinter as tk
-from tkinter import scrolledtext, messagebox
-import threading
-import queue
-import io
-import pygame
-import webbrowser
-import requests
+# app.py (Modern CustomTkinter UI)
+import customtkinter as ctk
+import threading, queue, io, pygame, requests, webbrowser
+from tkinter import messagebox
 from dotenv import load_dotenv
-
-# Import the necessary utilities
 from utils.nlp_mood_detector import NlpMoodDetector
 from utils.spotify_utils import get_spotify_client, get_spotify_recommendations
 from utils.voice_input import SpeechToTextConverter
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-class ChatPlayerGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Smart Mood Player")
-        self.root.geometry("800x500")
-        self.root.minsize(600, 400)
+# Initialize pygame mixer
+pygame.mixer.init()
 
-        pygame.mixer.init()
+ctk.set_appearance_mode("dark")      # Options: "dark" / "light"
+ctk.set_default_color_theme("green") # Spotify vibe
 
-        # --- Main Layout Frames ---
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=3)
-        self.root.grid_columnconfigure(1, weight=1)
-        self.chat_frame = tk.Frame(root, bg="#f0f0f0")
-        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.player_frame = tk.Frame(root)
-        self.player_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
+class SmartMoodPlayer(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("🎧 Smart Mood Player")
+        self.geometry("920x560")
+        self.minsize(800, 500)
+
+        # Queues
+        self.spotify_queue = queue.Queue()
+        self.voice_queue = queue.Queue()
+
+        # Backend
+        self.mood_detector = NlpMoodDetector()
+        self.speech_converter = SpeechToTextConverter()
+        self.tracks_data = []
+
+        # Main Layout (2-column grid)
+        self.grid_columnconfigure(0, weight=2)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # Left: Chat Panel
+        self.chat_frame = ctk.CTkFrame(self, corner_radius=15)
+        self.chat_frame.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
         self.chat_frame.grid_rowconfigure(0, weight=1)
+        self.chat_frame.grid_rowconfigure(1, weight=0)
         self.chat_frame.grid_columnconfigure(0, weight=1)
+
+        self.chat_display = ctk.CTkTextbox(
+            self.chat_frame,
+            wrap="word",
+            font=("Poppins", 13),
+            fg_color="#1E1E1E",
+            text_color="white",
+            corner_radius=10,
+            activate_scrollbars=True
+        )
+        self.chat_display.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=5, pady=10)
+        self.chat_display.insert("end", "🎧 Bot: Hello! Tell me how you're feeling today.\n\n")
+        self.chat_display.configure(state="disabled")
+
+        # Message entry + buttons
+        self.message_entry = ctk.CTkEntry(
+            self.chat_frame,
+            placeholder_text="Type how you feel or say 'play relaxing music'...",
+            font=("Poppins", 12),
+            corner_radius=10
+        )
+        self.message_entry.grid(row=1, column=0, padx=(10,5), pady=(0,10), sticky="ew")
+        self.message_entry.bind("<Return>", self.send_message)
+
+        self.voice_button = ctk.CTkButton(
+            self.chat_frame, text="🎙", width=45,
+            command=self.activate_voice_input, font=("Poppins", 13, "bold")
+        )
+        self.voice_button.grid(row=1, column=1, padx=5, pady=(0,10))
+
+        self.send_button = ctk.CTkButton(
+            self.chat_frame, text="Send ➤",
+            command=self.send_message, font=("Poppins", 13, "bold")
+        )
+        self.send_button.grid(row=1, column=2, padx=(5,10), pady=(0,10))
+
+        # Right: Player / Playlist Panel
+        self.player_frame = ctk.CTkFrame(self, corner_radius=15)
+        self.player_frame.grid(row=0, column=1, padx=(0,15), pady=15, sticky="nsew")
         self.player_frame.grid_rowconfigure(1, weight=1)
         self.player_frame.grid_columnconfigure(0, weight=1)
 
-        # --- Chat Window ---
-        self.chat_window = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD, state='disabled', font=("Helvetica", 11))
-        self.chat_window.grid(row=0, column=0, columnspan=3, sticky="nsew")
+        self.playlist_label = ctk.CTkLabel(
+            self.player_frame, text="🎵 Spotify Recommendations",
+            font=("Poppins", 16, "bold")
+        )
+        self.playlist_label.grid(row=0, column=0, pady=(15,10))
 
-        # --- Message Input ---
-        self.message_entry = tk.Entry(self.chat_frame, font=("Helvetica", 11))
-        self.message_entry.grid(row=1, column=0, sticky="ew", pady=(10, 0))
-        self.message_entry.bind("<Return>", self.send_message)
-        
-        # --- Buttons ---
-        self.chat_frame.grid_columnconfigure(0, weight=10) 
-        self.chat_frame.grid_columnconfigure(1, weight=1)
-        self.chat_frame.grid_columnconfigure(2, weight=1)
+        self.playlist_box = ctk.CTkTextbox(
+            self.player_frame, height=320, font=("Poppins", 12),
+            fg_color="#121212", text_color="white"
+        )
+        self.playlist_box.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
-        self.voice_button = tk.Button(self.chat_frame, text="🎤", command=self.activate_voice_input, font=("Helvetica", 10))
-        self.voice_button.grid(row=1, column=1, sticky="ew", pady=(10, 0), padx=5)
-        
-        self.send_button = tk.Button(self.chat_frame, text="Send", command=self.send_message)
-        self.send_button.grid(row=1, column=2, sticky="ew", pady=(10, 0))
-        
-        # --- Player/Playlist Side ---
-        self.playlist_label = tk.Label(self.player_frame, text="🎵 Recommendations", font=("Helvetica", 12, "bold"))
-        self.playlist_label.grid(row=0, column=0, sticky="w", pady=5)
-        self.playlist_listbox = tk.Listbox(self.player_frame, height=15, selectbackground="#c3c3c3")
-        self.playlist_listbox.grid(row=1, column=0, sticky="nsew")
-        self.play_button = tk.Button(self.player_frame, text="▶️ Play Selected Song", command=self.play_selected_song, state=tk.DISABLED)
-        self.play_button.grid(row=2, column=0, sticky="ew", pady=10)
+        self.play_button = ctk.CTkButton(
+            self.player_frame, text="▶ Play Selected Song",
+            command=self.play_selected_song, state="disabled", font=("Poppins", 13, "bold")
+        )
+        self.play_button.grid(row=2, column=0, padx=10, pady=(10,15), sticky="ew")
 
-        # --- Backend Logic Initialization ---
-        self.spotify_queue = queue.Queue()
-        self.mood_detector = NlpMoodDetector()
-        self.speech_converter = SpeechToTextConverter() 
-        self.tracks_data = []
+        # UI loop updates
+        self.after(100, self.check_spotify_queue)
+        self.after(100, self.check_voice_queue)
 
-        self.add_message("Bot", "Hello! Tell me how you're feeling or what you're in the mood for.")
-        self.check_spotify_queue()
+    # ---------------------------- UI LOGIC ----------------------------
 
-    def add_message(self, sender, message):
-        self.chat_window.config(state='normal')
+    def add_message(self, sender, text):
+        self.chat_display.configure(state="normal")
         if sender == "You":
-            self.chat_window.insert(tk.END, f"You: {message}\n", 'user_tag')
+            self.chat_display.insert("end", f"You: {text}\n", "user")
         else:
-            self.chat_window.insert(tk.END, f"Bot: {message}\n\n", 'bot_tag')
-        self.chat_window.config(state='disabled')
-        self.chat_window.yview(tk.END)
+            self.chat_display.insert("end", f"🎧 Bot: {text}\n\n", "bot")
+        self.chat_display.configure(state="disabled")
+        self.chat_display.yview("end")
 
     def activate_voice_input(self):
-        """Handles the voice input process in a separate thread."""
-        self.voice_button.config(state=tk.DISABLED)
+        self.voice_button.configure(state="disabled")
         self.add_message("Bot", "Listening...")
         threading.Thread(target=self.voice_input_thread).start()
 
     def voice_input_thread(self):
-        """Recognizes speech and puts the result in the message entry."""
         recognized_text = self.speech_converter.recognize_from_microphone()
-        self.voice_button.config(state=tk.NORMAL)
-        if recognized_text:
-            self.message_entry.delete(0, tk.END)
-            self.message_entry.insert(0, recognized_text)
-            self.add_message("Bot", f"I heard: '{recognized_text}'. Press Send to get recommendations.")
-        else:
-            self.add_message("Bot", "I couldn't understand that. Please try again or type your message.")
+        self.voice_queue.put(recognized_text)
 
+    def check_voice_queue(self):
+        try:
+            text = self.voice_queue.get(block=False)
+            self.voice_button.configure(state="normal")
+            if text:
+                self.message_entry.delete(0, "end")
+                self.message_entry.insert(0, text)
+                self.add_message("Bot", f"I heard: '{text}'. Press Send to continue.")
+            else:
+                self.add_message("Bot", "Sorry, I didn’t catch that. Try again.")
+        except queue.Empty:
+            pass
+        finally:
+            self.after(100, self.check_voice_queue)
 
     def send_message(self, event=None):
-        user_input = self.message_entry.get()
+        user_input = self.message_entry.get().strip()
         if not user_input:
             return
-        
+
         self.add_message("You", user_input)
-        self.message_entry.delete(0, tk.END)
-        
-        predicted_mood = self.mood_detector.predict_mood(user_input)
-        self.add_message("Bot", f"I sense you're feeling '{predicted_mood}'. Searching for music on Spotify...")
-        
-        self.send_button.config(state=tk.DISABLED)
-        threading.Thread(target=self.fetch_spotify_data_thread, args=(predicted_mood,)).start()
+        self.message_entry.delete(0, "end")
+
+        mood = self.mood_detector.predict_mood(user_input)
+        self.add_message("Bot", f"You're feeling {mood}. Fetching Spotify tracks...")
+
+        self.send_button.configure(state="disabled")
+        threading.Thread(target=self.fetch_spotify_data_thread, args=(mood,)).start()
 
     def fetch_spotify_data_thread(self, mood):
         try:
@@ -128,59 +168,59 @@ class ChatPlayerGUI:
     def check_spotify_queue(self):
         try:
             result = self.spotify_queue.get(block=False)
-            self.update_ui_with_results(result)
+            self.update_playlist(result)
         except queue.Empty:
             pass
         finally:
-            self.root.after(100, self.check_spotify_queue)
+            self.after(100, self.check_spotify_queue)
 
-    def update_ui_with_results(self, result):
-        self.send_button.config(state=tk.NORMAL)
-        if isinstance(result, str):
+    def update_playlist(self, result):
+        self.send_button.configure(state="normal")
+        if isinstance(result, str) and result.startswith("Error"):
             messagebox.showerror("Spotify Error", result)
-            self.add_message("Bot", "Sorry, I ran into an error connecting to Spotify.")
+            self.add_message("Bot", "⚠️ Error connecting to Spotify.")
             return
 
         self.tracks_data = result
-        self.playlist_listbox.delete(0, tk.END)
-        
-        if not self.tracks_data:
-            self.add_message("Bot", "I couldn't find any tracks for that mood. Please try something else!")
-            self.play_button.config(state=tk.DISABLED)
+        self.playlist_box.configure(state="normal")
+        self.playlist_box.delete("1.0", "end")
+
+        if not result:
+            self.playlist_box.insert("end", "No songs found. Try another mood.\n")
+            self.play_button.configure(state="disabled")
             return
 
-        for track in self.tracks_data:
-            self.playlist_listbox.insert(tk.END, f"{track['title']} - {track['artist']}")
-        
-        self.add_message("Bot", "I've found some songs for you! Select one from the list and press play.")
-        self.play_button.config(state=tk.NORMAL)
+        for i, track in enumerate(result, 1):
+            self.playlist_box.insert("end", f"{i}. {track['title']} - {track['artist']}\n")
+
+        self.playlist_box.configure(state="disabled")
+        self.play_button.configure(state="normal")
+        self.add_message("Bot", "Here are your songs! Choose one to play.")
 
     def play_selected_song(self):
-        selected_indices = self.playlist_listbox.curselection()
-        if not selected_indices:
-            messagebox.showinfo("No Selection", "Please select a song from the list first.")
-            return
+        try:
+            selected_line = self.playlist_box.get("insert linestart", "insert lineend").strip()
+            if not selected_line:
+                messagebox.showinfo("No Selection", "Click a song line first.")
+                return
 
-        selected_track = self.tracks_data[selected_indices[0]]
-        preview_url = selected_track.get("preview_url")
+            index = int(selected_line.split(".")[0]) - 1
+            track = self.tracks_data[index]
+            preview_url = track.get("preview_url")
 
-        if preview_url:
-            try:
+            if preview_url:
                 pygame.mixer.music.stop()
-                response = requests.get(preview_url, stream=True)
-                if response.status_code == 200:
-                    pygame.mixer.music.load(io.BytesIO(response.content))
-                    pygame.mixer.music.play()
-                    self.add_message("Bot", f"▶️ Playing preview: {selected_track['title']}")
-                else:
-                    messagebox.showerror("Download Error", "Could not fetch the song preview.")
-            except Exception as e:
-                messagebox.showerror("Playback Error", f"An error occurred: {e}")
-        else:
-            self.add_message("Bot", "No preview available. Opening full song in browser...")
-            webbrowser.open(selected_track["url"])
+                r = requests.get(preview_url, stream=True)
+                pygame.mixer.music.load(io.BytesIO(r.content))
+                pygame.mixer.music.play()
+                self.add_message("Bot", f"▶️ Playing: {track['title']}")
+            else:
+                self.add_message("Bot", "No preview available. Opening full track...")
+                webbrowser.open(track["url"])
+        except Exception as e:
+            messagebox.showerror("Playback Error", f"Error: {e}")
 
+# Run App
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = ChatPlayerGUI(root)
-    root.mainloop()
+    app = SmartMoodPlayer()
+    app.mainloop()
