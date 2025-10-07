@@ -1,8 +1,8 @@
-pandas
-numpy
-scikit-learn
-spotipy
-SpeechRecognition
 python-dotenv
+spotipy
+pygame
+requests
+scikit-learn
+pandas
+speechrecognition
 pyaudio
-flask

@@ -68,13 +68,14 @@ def get_spotify_recommendations(sp, mood):
 
         params = {
             'limit': 20,
-            'seed_genres': ",".join(selected_genres)
+            'seed_genres': ",".join(selected_genres),
+            'min_popularity': 50  # Added for more popular tracks
         }
         features = MOOD_TO_FEATURES.get(mood.lower(), {})
         params.update(features)
 
         # 3. Build the URL and request headers
-        base_url = "https://api.spotify.com/v1/recommendations?limit=20&seed_genres=acoustic&target_energy=0.6&target_valence=0.31"
+        base_url = "https://api.spotify.com/v1/recommendations" # Corrected URL
         query_string = urllib.parse.urlencode(params)
         full_url = f"{base_url}?{query_string}"
         
