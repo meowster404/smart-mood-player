@@ -24,7 +24,7 @@ class SpeechToTextConverter:
 
             try:
                 # Listen for the user's input with a timeout
-                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                audio = self.recognizer.listen(source, timeout=3, phrase_time_limit=5)
                 print("🗣️ Recognizing...")
 
                 # Use Google's speech recognition engine to convert audio to text

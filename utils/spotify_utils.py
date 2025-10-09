@@ -1,28 +1,13 @@
-# spotify_utils.py
+# utils/spotify_utils.py
 import os
-import random
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --------------------- Mood Features & Fallback ---------------------
-MOOD_TO_FEATURES = {
-    "happy":   {"target_valence": 0.9, "target_energy": 0.8, "target_tempo": 120},
-    "sad":     {"target_valence": 0.2, "target_energy": 0.3, "target_tempo": 60},
-    "angry":   {"target_valence": 0.1, "target_energy": 0.9, "target_tempo": 140},
-    "relaxed": {"target_valence": 0.8, "target_energy": 0.2, "target_tempo": 70},
-    "fear":    {"target_valence": 0.1, "target_energy": 0.6},
-    "neutral": {"target_valence": 0.5, "target_energy": 0.5}
-}
-
-FALLBACK_GENRE_SEEDS = [
-    "pop", "rock", "edm", "hiphop", "jazz", "classical", "indie", "reggae"
-]
-
-# --------------------- Spotify Client ---------------------
 def get_spotify_client():
+    """Authenticates with Spotify to get a client object."""
     client_id = os.getenv("SPOTIPY_CLIENT_ID")
     client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
 
@@ -38,35 +23,25 @@ def get_spotify_client():
         print(f"⚠️ Failed to authenticate Spotify client: {e}")
         return None
 
-# --------------------- Fetch Recommendations ---------------------
-def get_spotify_recommendations(sp, mood):
+def search_for_playlists(sp, query):
+    """Searches for 20 playlists on Spotify based on a query."""
     if not sp:
-        print("⚠️ Spotify client unavailable.")
         return []
-
-    features = MOOD_TO_FEATURES.get(mood.lower(), {})
-    genres = random.sample(FALLBACK_GENRE_SEEDS, 2)
-
-    print(f"🎧 Fetching recommendations for mood '{mood}' with genres {genres}...")
+    
     try:
-        # Only pass non-None features
-        results = sp.recommendations(
-            seed_genres=genres,
-            limit=15,
-            **{k: v for k, v in features.items() if v is not None}
-        )
+        # Using the 'search' endpoint with type='playlist'
+        results = sp.search(q=query, type='playlist', limit=20)
+        if not results['playlists']['items']:
+            return []
+        
+        playlists = []
+        for item in results['playlists']['items']:
+            playlists.append({
+                "name": item["name"],
+                "owner": item["owner"]["display_name"],
+                "url": item["external_urls"]["spotify"],
+            })
+        return playlists
     except Exception as e:
-        print(f"⚠️ Spotify API error: {e}")
+        print(f"⚠️ Spotify search error: {e}")
         return []
-
-    tracks = []
-    for item in results.get("tracks", []):
-        tracks.append({
-            "title": item["name"],
-            "artist": item["artists"][0]["name"],
-            "url": item["external_urls"]["spotify"],
-            "preview_url": item.get("preview_url")
-        })
-
-    print(f"✅ Found {len(tracks)} tracks.")
-    return tracks
