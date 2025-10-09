@@ -1,16 +1,21 @@
 # train_model.py
+
+import os
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 import joblib
 import neattext.functions as nfx
-import os
 
-# Define base directory to locate files easily
-BASE_DIR = "smart-mood-player"
-DATA_PATH = os.path.join(BASE_DIR, "data", "emotion_dataset_raw.csv")
-MODEL_DIR = os.path.join(BASE_DIR, "models")
+# Get the absolute path to the directory containing this script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one directory to the project root
+project_root = os.path.dirname(script_dir)
+
+# Define paths relative to the project root
+DATA_PATH = os.path.join(project_root, "data", "emotion_dataset_raw.csv")
+MODEL_DIR = os.path.join(project_root, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
 
 # Create models directory if it doesn't exist
