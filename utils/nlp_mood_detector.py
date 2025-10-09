@@ -3,31 +3,30 @@ import joblib
 import os
 
 class NlpMoodDetector:
-    def __init__(self, model_path="models/emotion_classifier.pkl"):
+    def __init__(self, model_path="smart-mood-player/models/emotion_classifier.pkl"):
         """
         Loads the pre-trained NLP model.
-        The path is constructed relative to this script's location
-        to avoid 'FileNotFoundError' when run from different directories.
+        Assumes the script is run from the project's root directory.
         """
-        try:
-            # Get the absolute path to the directory containing this script (utils/)
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            # Go up one directory to the project root (smart-mood-player/)
-            project_root = os.path.dirname(script_dir)
-            # Join the root path with the relative model path
-            absolute_model_path = os.path.join(project_root, model_path)
-
-            # Load the model using the correct, absolute path
-            self.model = joblib.load(open(absolute_model_path, "rb"))
-            print("✅ NLP Mood Detector has been loaded.")
-        
-        except FileNotFoundError:
-            print(f"❌ MODEL NOT FOUND at '{absolute_model_path}'")
+        # --- Simplified Path ---
+        # This path is now relative to the project's root directory.
+        if not os.path.exists(model_path):
+            print(f"❌ MODEL NOT FOUND at '{model_path}'")
             print("Please ensure you have trained the model by running the train_model.py script.")
             # Re-raise the exception to stop the application from running without the model
+            raise FileNotFoundError(f"Model not found at {model_path}")
+            
+        try:
+            self.model = joblib.load(model_path)
+            print("✅ NLP Mood Detector has been loaded.")
+        
+        except Exception as e:
+            print(f"❌ An error occurred while loading the model: {e}")
             raise
 
     def predict_mood(self, user_text: str) -> str:
         """Predicts the mood from a user's text input using the loaded NLP model."""
+        if not hasattr(self, 'model'):
+             return "Error: Model not loaded"
         prediction = self.model.predict([user_text])
         return prediction[0]

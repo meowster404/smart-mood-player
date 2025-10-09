@@ -29,8 +29,15 @@ def search_for_playlists(sp, query):
         return []
     
     try:
-        # Using the 'search' endpoint with type='playlist'
         results = sp.search(q=query, type='playlist', limit=20)
+        
+        # --- Robustness Fix ---
+        # The Spotify API can return None if authentication fails or the request is bad.
+        # This check prevents the 'NoneType' error.
+        if not results or 'playlists' not in results:
+            print("⚠️ Spotify search returned no results or an unexpected format. Please check your API credentials in the .env file.")
+            return []
+
         if not results['playlists']['items']:
             return []
         
@@ -42,30 +49,6 @@ def search_for_playlists(sp, query):
                 "url": item["external_urls"]["spotify"],
             })
         return playlists
-    except Exception as e:
-        print(f"⚠️ Spotify search error: {e}")
-        return []
-
-def search_for_tracks(sp, query):
-    """Searches for 20 tracks on Spotify based on a query."""
-    if not sp:
-        return []
-    
-    try:
-        # Using the 'search' endpoint with type='track'
-        results = sp.search(q=query, type='track', limit=20)
-        if not results['tracks']['items']:
-            return []
-        
-        tracks = []
-        for item in results['tracks']['items']:
-            tracks.append({
-                "name": item["name"],
-                "artist": item["artists"][0]["name"],
-                "url": item["external_urls"]["spotify"],
-                "uri": item["uri"],
-            })
-        return tracks
     except Exception as e:
         print(f"⚠️ Spotify search error: {e}")
         return []

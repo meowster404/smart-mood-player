@@ -14,8 +14,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 
 # Define paths relative to the project root
-DATA_PATH = os.path.join(project_root, "data", "emotion_dataset_raw.csv")
-MODEL_DIR = os.path.join(project_root, "models")
+DATA_PATH = os.path.join(project_root, "smart-mood-player", "data", "emotion_dataset_raw.csv")
+MODEL_DIR = os.path.join(project_root, "smart-mood-player","models")
 MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
 
 # Create models directory if it doesn't exist
