@@ -87,17 +87,10 @@ class SmartPlaylistFinder(ctk.CTk):
         )
         self.playlist_label.grid(row=0, column=0, pady=(15,10))
 
-        self.playlist_box = ctk.CTkTextbox(
-            self.player_frame, height=320, font=("Poppins", 12),
-            fg_color="#121212", text_color="white"
+        self.playlist_scroll_frame = ctk.CTkScrollableFrame(
+            self.player_frame, fg_color=self.player_frame.cget("fg_color")
         )
-        self.playlist_box.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
-
-        self.play_button = ctk.CTkButton(
-            self.player_frame, text="▶ Open Selected Playlist in Spotify",
-            command=self.open_selected_playlist, state="disabled", font=("Poppins", 13, "bold")
-        )
-        self.play_button.grid(row=2, column=0, padx=10, pady=(10,15), sticky="ew")
+        self.playlist_scroll_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
         # UI loop updates
         self.after(100, self.check_spotify_queue)
@@ -151,20 +144,17 @@ class SmartPlaylistFinder(ctk.CTk):
     def fetch_playlists_thread(self, query):
         sp = get_spotify_client()
         if not sp:
-            # Send a clear error to the queue
             self.spotify_queue.put(("Error", "Could not connect to Spotify. Please check your SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET in the .env file."))
             return
 
         playlists = search_for_playlists(sp, query)
-        # This now relies on spotify_utils to handle the None case
         self.spotify_queue.put(("Success", playlists))
 
     def check_spotify_queue(self):
         try:
-            # Unpack status and result
             status, result = self.spotify_queue.get(block=False)
             
-            self.send_button.configure(state="normal") # Re-enable button after search
+            self.send_button.configure(state="normal")
             
             if status == "Error":
                 self.add_message("Bot", f"⚠️ {result}")
@@ -177,36 +167,43 @@ class SmartPlaylistFinder(ctk.CTk):
             self.after(100, self.check_spotify_queue)
 
     def update_playlist_display(self, playlists):
-        self.playlists_data = playlists
-        self.playlist_box.configure(state="normal")
-        self.playlist_box.delete("1.0", "end")
+        for widget in self.playlist_scroll_frame.winfo_children():
+            widget.destroy()
 
         if not playlists:
-            self.add_message("Bot", "Couldn't find any playlists for that mood. Please try something else.")
-            self.playlist_box.insert("end", "No playlists found.\n")
-            self.play_button.configure(state="disabled")
+            self.add_message("Bot", "Couldn't find any playlists for that mood.")
+            no_results_label = ctk.CTkLabel(self.playlist_scroll_frame, text="No playlists found.")
+            no_results_label.pack(pady=10, padx=10)
         else:
-            self.add_message("Bot", "Here are some playlists I found. Pick one to open it in Spotify!")
-            for i, p in enumerate(playlists, 1):
-                self.playlist_box.insert("end", f"{i}. {p['name']} (by {p['owner']})\n")
-            self.play_button.configure(state="normal")
+            self.add_message("Bot", "Here are some playlists I found. Click one to open it!")
+            for p in playlists:
+                # --- FINAL UI FIX ---
+                # Truncate long text to prevent ugly wrapping
+                playlist_name = p['name']
+                owner_name = p['owner']
+                
+                if len(playlist_name) > 30:
+                    playlist_name = playlist_name[:27] + "..."
+                if len(owner_name) > 25:
+                    owner_name = owner_name[:22] + "..."
 
-        self.playlist_box.configure(state="disabled")
+                # Use a single line of text for clean alignment
+                btn_text = f"▶ {playlist_name} (by {owner_name})"
+                
+                playlist_button = ctk.CTkButton(
+                    self.playlist_scroll_frame,
+                    text=btn_text,
+                    font=("Poppins", 13),
+                    anchor="w",  # Align text to the left
+                    command=lambda url=p['url'], name=p['name']: self.open_in_spotify(url, name)
+                )
+                playlist_button.pack(fill="x", padx=5, pady=(0, 5))
+                # --- END FINAL UI FIX ---
 
-    def open_selected_playlist(self):
+    def open_in_spotify(self, url, name):
         try:
-            selected_line = self.playlist_box.get("insert linestart", "insert lineend").strip()
-            if not selected_line:
-                messagebox.showinfo("No Selection", "Click a playlist line first.")
-                return
-
-            index = int(selected_line.split(".")[0]) - 1
-            if 0 <= index < len(self.playlists_data):
-                playlist = self.playlists_data[index]
-                webbrowser.open(playlist["url"])
-                self.add_message("Bot", f"Opening '{playlist['name']}' in Spotify...")
-        except (ValueError, IndexError):
-             messagebox.showerror("Error", "Invalid selection. Please click on a valid playlist line.")
+            webbrowser.open(url)
+            self.add_message("Bot", f"Opening '{name}' in Spotify...")
         except Exception as e:
             messagebox.showerror("Error", f"Could not open the playlist: {e}")
 
