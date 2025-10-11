@@ -7,6 +7,7 @@ from utils.spotify_utils import get_spotify_client, search_for_playlists, search
 from utils.voice_input import SpeechToTextConverter
 from utils.nlp_mood_detector import NlpMoodDetector
 from utils.intent_detector import IntentDetector
+from utils.chatbot import Chatbot  # Import the Chatbot
 
 # Load environment variables
 load_dotenv()
@@ -24,11 +25,14 @@ class SmartPlaylistFinder(ctk.CTk):
             self.speech_converter = SpeechToTextConverter()
             self.mood_detector = NlpMoodDetector()
             self.intent_detector = IntentDetector()
+            self.chatbot = Chatbot()  # Initialize the chatbot
             self.playlists_data = []
         except FileNotFoundError as e:
             self.withdraw()
             if "emotion_classifier.pkl" in str(e):
                 messagebox.showerror("Model Error", "Emotion classifier model not found. Please run train_model.py.")
+            elif "chatbot_model.pkl" in str(e):
+                messagebox.showerror("Model Error", "Chatbot model not found. Please run train_model.py.")
             else:
                 messagebox.showerror("File Error", f"A required file was not found: {e}")
             self.destroy()
@@ -56,8 +60,8 @@ class SmartPlaylistFinder(ctk.CTk):
         self.chat_scroll_frame = ctk.CTkScrollableFrame(self.chat_frame, fg_color=self.chat_frame.cget("fg_color"))
         self.chat_scroll_frame.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=5, pady=10)
 
-
-        self.add_message("Bot", "Hi, how can I help you? You can ask for songs by artist, title, activity, or tell me how you're feeling!")
+        # Use chatbot for the initial message
+        self.add_message("Bot", self.chatbot.get_response("hello"))
 
         # Message entry + buttons
         self.message_entry = ctk.CTkEntry(
@@ -115,7 +119,6 @@ class SmartPlaylistFinder(ctk.CTk):
 
         self.chat_scroll_frame._parent_canvas.yview_moveto(1.0)
 
-
     def activate_voice_input(self):
         self.voice_button.configure(state="disabled")
         self.add_message("Bot", "Listening...")
@@ -155,11 +158,10 @@ class SmartPlaylistFinder(ctk.CTk):
         entity = intent_data.get("entity")
 
         # 2. Handle Intent
-        if intent == "GREETING":
-            self.add_message("Bot", "Hello! How can I help you find some music today?")
-            self.send_button.configure(state="normal")
-        elif intent == "QUESTION":
-            self.add_message("Bot", "I'm a bot designed to help you find music based on your mood, artists, songs, or activities!")
+        if intent in ["GREETING", "QUESTION"]:
+            # Use the chatbot for conversational responses
+            response = self.chatbot.get_response(user_input)
+            self.add_message("Bot", response)
             self.send_button.configure(state="normal")
         elif intent == "ARTIST":
             self.add_message("Bot", f"Searching for top tracks by {entity}...")
@@ -169,17 +171,17 @@ class SmartPlaylistFinder(ctk.CTk):
             threading.Thread(target=self.fetch_track_thread, args=(entity,), daemon=True).start()
         elif intent == "ACTIVITY":
             mood = intent_data["mood"]
-            self.add_message("Bot", f"For {entity}, I recommend some {mood} music. Would you like me to find some?")
-            # For simplicity, we search directly. A more advanced bot could wait for a "yes" response.
+            self.add_message("Bot", f"For {entity}, I recommend some {mood} music. Looking for playlists...")
             threading.Thread(target=self.fetch_playlists_thread, args=(mood,), daemon=True).start()
         elif intent == "MOOD":
             predicted_mood = self.mood_detector.predict_mood(user_input)
             self.add_message("Bot", f"It sounds like you're feeling {predicted_mood}. Let me find some playlists for that...")
             threading.Thread(target=self.fetch_playlists_thread, args=(predicted_mood,), daemon=True).start()
-        else:
-            self.add_message("Bot", "I'm not sure I understood. You can ask me to play a song, find an artist, or tell me your mood.")
+        else: # Fallback
+            # Use the chatbot if intent is unclear
+            response = self.chatbot.get_response(user_input)
+            self.add_message("Bot", response)
             self.send_button.configure(state="normal")
-
 
     def fetch_track_thread(self, track_name):
         sp = get_spotify_client()
@@ -260,15 +262,14 @@ class SmartPlaylistFinder(ctk.CTk):
                 )
                 btn.pack(fill="x", padx=5, pady=(0, 5))
 
-
     def open_in_spotify(self, url, name):
         try:
             webbrowser.open(url)
             self.add_message("Bot", f"Opening '{name}' in Spotify...")
         except Exception as e:
-            messagebox.showerror("Error", f"Could not open the playlist: {e}")
+            messagebox.showerror("Error", f"Could not open the link: {e}")
 
 if __name__ == "__main__":
-    app = SmartPlaylistFinder()
+    app = SmartPlaylistFinder() 
     if app.initialization_successful:
         app.mainloop()

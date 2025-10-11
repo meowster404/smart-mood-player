@@ -1,23 +1,26 @@
-# Smart Mood Player 🎵
+# Smart Music Finder 🎵
 
-A desktop application that intelligently recommends Spotify songs based on your current mood, detected from either text or voice input.
+A smart, conversational desktop app that recommends Spotify music based on your mood, preferred artists, songs, or even your current activity, using both text and voice input.
 
 ## Features ✨
 
-* **Mood Detection**: Utilizes a Natural Language Processing (NLP) model to analyze your text and determine your mood.
-* **Voice Input**: Speak your mood directly into the app using the built-in voice-to-text feature.
-* **Spotify Integration**: Fetches personalized song recommendations from Spotify's vast library that match your emotional state.
-* **Interactive UI**: A simple and clean user interface built with Tkinter to chat and manage your playlist.
-* **Song Previews**: Listen to 30-second previews of recommended songs directly within the application.
-* **Open in Spotify**: Instantly open the full song in your web browser if a preview isn't available.
+* **Advanced Intent Detection**: Understands whether you're asking for a song by title, artist, activity (e.g., "music for studying"), or just expressing a mood.
+* **Conversational Chatbot**: For greetings, questions, and general chat, the app provides natural responses.
+* **Mood Analysis**: Utilizes a Natural Language Processing (NLP) model to analyze your text and determine your mood for playlist recommendations.
+* **Voice Input**: Speak your requests directly into the app using the built-in voice-to-text feature.
+* **Spotify Integration**: Fetches personalized playlists and tracks from Spotify's vast library.
+* **Modern & Interactive UI**: A clean and modern user interface built with CustomTkinter.
+* **Open in Spotify**: Instantly open any found song or playlist in your web browser.
 
 ## How It Works ⚙️
 
-1.  The user enters text or uses the microphone to describe their feelings.
-2.  The input text is processed by a pre-trained scikit-learn NLP model to predict the primary emotion (e.g., joy, sadness, anger).
-3.  Based on the detected mood, the application queries the Spotify API for song recommendations with specific audio features (like valence, energy, and tempo) that match the mood.
-4.  A playlist of recommended songs is displayed in the GUI.
-5.  The user can select a song to hear a preview, which is streamed and played using Pygame.
+1.  **Input**: The user types a message or uses the microphone.
+2.  **Intent Analysis**: The app first tries to understand the user's specific *intent* (e.g., find a song, find an artist, or just casual chat).
+3.  **Action**:
+    * If a specific intent like finding a song is detected, it queries the Spotify API.
+    * If the user is just expressing a feeling (e.g., "I'm happy today"), the NLP mood model predicts the emotion and finds suitable playlists.
+    * If the user is just chatting (e.g., "hello", "what can you do?"), the retrieval-based chatbot provides a response.
+4.  **Display**: The found playlists or tracks are displayed in the right-hand panel, ready to be opened in Spotify.
 
 ## Setup and Installation 🚀
 
