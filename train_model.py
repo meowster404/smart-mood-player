@@ -19,6 +19,7 @@ MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
 # Create models directory if it doesn't exist
 os.makedirs(MODEL_DIR, exist_ok=True)
 
+print("🚀 Starting training for the emotion classifier model...")
 # Load the dataset
 try:
     df = pd.read_csv(DATA_PATH)
@@ -49,4 +50,4 @@ pipeline.fit(Xfeatures, ylabels)
 with open(MODEL_PATH, "wb") as f:
     joblib.dump(pipeline, f)
 
-print(f"✅ Model trained and saved as {MODEL_PATH}")
+print(f"✅ Emotion classifier model trained and saved as {MODEL_PATH}")
