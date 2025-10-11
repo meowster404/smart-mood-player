@@ -238,8 +238,6 @@ class SmartPlaylistFinder(ctk.CTk):
             for p in results:
                 playlist_name = p['name']
                 owner_name = p['owner']
-                if len(playlist_name) > 30: playlist_name = playlist_name[:27] + "..."
-                if len(owner_name) > 25: owner_name = owner_name[:22] + "..."
                 btn_text = f"▶ {playlist_name} (by {owner_name})"
                 btn = ctk.CTkButton(
                     self.results_scroll_frame, text=btn_text, font=("Poppins", 13), anchor="w",
@@ -253,8 +251,6 @@ class SmartPlaylistFinder(ctk.CTk):
             for t in results:
                 track_name = t['name']
                 artist_name = t['artist']
-                if len(track_name) > 30: track_name = track_name[:27] + "..."
-                if len(artist_name) > 25: artist_name = artist_name[:22] + "..."
                 btn_text = f"🎵 {track_name} (by {artist_name})"
                 btn = ctk.CTkButton(
                     self.results_scroll_frame, text=btn_text, font=("Poppins", 13), anchor="w",
