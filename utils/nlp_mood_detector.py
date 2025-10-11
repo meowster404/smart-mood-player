@@ -2,14 +2,18 @@
 import joblib
 import os
 
+# Get the absolute path to the directory containing this script (utils)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one directory to the project root
+project_root = os.path.dirname(script_dir)
+# Construct the correct model path
+DEFAULT_MODEL_PATH = os.path.join(project_root, "models", "emotion_classifier.pkl")
+
 class NlpMoodDetector:
-    def __init__(self, model_path="smart-mood-player/models/emotion_classifier.pkl"):
+    def __init__(self, model_path=DEFAULT_MODEL_PATH):
         """
-        Loads the pre-trained NLP model.
-        Assumes the script is run from the project's root directory.
+        Loads the pre-trained NLP model using a robust path.
         """
-        # --- Simplified Path ---
-        # This path is now relative to the project's root directory.
         if not os.path.exists(model_path):
             print(f"❌ MODEL NOT FOUND at '{model_path}'")
             print("Please ensure you have trained the model by running the train_model.py script.")

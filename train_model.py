@@ -10,12 +10,10 @@ import neattext.functions as nfx
 
 # Get the absolute path to the directory containing this script
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# Go up one directory to the project root
-project_root = os.path.dirname(script_dir)
 
-# Define paths relative to the project root
-DATA_PATH = os.path.join(project_root, "smart-mood-player", "data", "emotion_dataset_raw.csv")
-MODEL_DIR = os.path.join(project_root, "smart-mood-player","models")
+# Define paths relative to the script's location for robustness
+DATA_PATH = os.path.join(script_dir, "data", "emotion_dataset_raw.csv")
+MODEL_DIR = os.path.join(script_dir, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
 
 # Create models directory if it doesn't exist
@@ -26,7 +24,7 @@ try:
     df = pd.read_csv(DATA_PATH)
 except FileNotFoundError:
     print(f"Error: The dataset was not found at {DATA_PATH}")
-    print("Please make sure the 'emotion_dataset_raw.csv' file is in the correct directory.")
+    print("Please make sure the 'emotion_dataset_raw.csv' file is in the 'data' directory relative to train_model.py.")
     exit()
 
 
