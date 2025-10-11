@@ -1,53 +1,28 @@
 # train_model.py
 
+import subprocess
+import sys
 import os
-import pandas as pd
-from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.linear_model import LogisticRegression
-import joblib
-import neattext.functions as nfx
 
-# Get the absolute path to the directory containing this script
-script_dir = os.path.dirname(os.path.abspath(__file__))
+def run_script(script_name):
+    """Runs a Python script located in the 'training' directory and checks for errors."""
+    script_path = os.path.join("training", script_name)
+    try:
+        print(f"--- Running {script_path} ---")
+        subprocess.run([sys.executable, script_path], check=True)
+        print(f"--- Finished {script_path} ---\n")
+    except FileNotFoundError:
+        print(f"❌ Error: Script not found at {script_path}")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running {script_path}: {e}")
+        sys.exit(1)
 
-# Define paths relative to the script's location for robustness
-DATA_PATH = os.path.join(script_dir, "data", "emotion_dataset_raw.csv")
-MODEL_DIR = os.path.join(script_dir, "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
+if __name__ == "__main__":
+    print("🚀 Starting all training processes...\n")
 
-# Create models directory if it doesn't exist
-os.makedirs(MODEL_DIR, exist_ok=True)
+    run_script("train_emotion_classifier.py")
+    run_script("train_chatbot.py")
+    run_script("train_intent_detector.py") # This script just prints info
 
-print("🚀 Starting training for the emotion classifier model...")
-# Load the dataset
-try:
-    df = pd.read_csv(DATA_PATH)
-except FileNotFoundError:
-    print(f"Error: The dataset was not found at {DATA_PATH}")
-    print("Please make sure the 'emotion_dataset_raw.csv' file is in the 'data' directory relative to train_model.py.")
-    exit()
-
-
-# Data Cleaning
-df['Clean_Text'] = df['Text'].apply(nfx.remove_userhandles)
-df['Clean_Text'] = df['Clean_Text'].apply(nfx.remove_stopwords)
-
-# Features and Labels
-Xfeatures = df['Clean_Text']
-ylabels = df['Emotion']
-
-# Create a pipeline with CountVectorizer and LogisticRegression
-pipeline = Pipeline(steps=[
-    ('cv', CountVectorizer()),
-    ('lr', LogisticRegression(max_iter=1000)) # Increased max_iter for convergence
-])
-
-# Train the model
-pipeline.fit(Xfeatures, ylabels)
-
-# Save the model
-with open(MODEL_PATH, "wb") as f:
-    joblib.dump(pipeline, f)
-
-print(f"✅ Emotion classifier model trained and saved as {MODEL_PATH}")
+    print("✅ All training processes completed successfully!")
