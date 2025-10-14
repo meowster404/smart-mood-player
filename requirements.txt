@@ -1,10 +1,28 @@
+# Core dependencies
 python-dotenv
 spotipy
-pygame
-requests
-scikit-learn
-pandas
-speechrecognition
-pyaudio
 customtkinter
+requests
+
+# UI and audio processing
+pygame
+sounddevice
+pyaudio
+numpy
+pillow
+
+# NLP and ML
+scikit-learn
+nltk
 neattext
+transformers
+torch
+
+# Analysis and visualization
+matplotlib
+seaborn
+pandas
+graphviz
+
+# Speech recognition
+SpeechRecognition

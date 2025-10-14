@@ -160,21 +160,61 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+# Model and data files (should not be committed to git)
+*.pkl
+*.h5
+*.model
+*.joblib
+*.sav
 
-# Ruff stuff:
-.ruff_cache/
+# Data files
+*.csv
+*.json
+!data/intent.json
+!requirements.txt
+
+# Log files
+*.log
+analysis_logs/*
+
+# Cache directories
+.cache/
+__pycache__/
+*.pyc
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test files (development only)
+test_*.py
+*_test.py
+tests/
+test_/
+
+# Training scripts (development only)
+train_*.py
+training/
+
+# Workflow analysis (development only)
+workflow_analysis.py
 
 # PyPI configuration file
 .pypirc
 
-# Cursor  
-#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to 
+# Cursor
+#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore

@@ -15,17 +15,17 @@ class NlpMoodDetector:
         Loads the pre-trained NLP model using a robust path.
         """
         if not os.path.exists(model_path):
-            print(f"❌ MODEL NOT FOUND at '{model_path}'")
+            print(f"[ERROR] MODEL NOT FOUND at '{model_path}'")
             print("Please ensure you have trained the model by running the train_model.py script.")
             # Re-raise the exception to stop the application from running without the model
             raise FileNotFoundError(f"Model not found at {model_path}")
             
         try:
             self.model = joblib.load(model_path)
-            print("✅ NLP Mood Detector has been loaded.")
+            print("[SUCCESS] NLP Mood Detector has been loaded.")
         
         except Exception as e:
-            print(f"❌ An error occurred while loading the model: {e}")
+            print(f"[ERROR] An error occurred while loading the model: {e}")
             raise
 
     def predict_mood(self, user_text: str) -> str:
@@ -33,4 +33,8 @@ class NlpMoodDetector:
         if not hasattr(self, 'model'):
              return "Error: Model not loaded"
         prediction = self.model.predict([user_text])
+        print("\n[Mood Detector]")
+        print(f"Input text: {user_text}")
+        print(f"Detected mood: {prediction[0]}")
+        print("=" * 50)
         return prediction[0]

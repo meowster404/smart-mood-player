@@ -1,32 +1,54 @@
-# app.py (Modern CustomTkinter UI with Intent-based Chatbot)
+# app.py (Modern CustomTkinter UI with Enhanced Features)
 import customtkinter as ctk
 import threading, queue, webbrowser
+import os, json, random
 from tkinter import messagebox
 from dotenv import load_dotenv
-from utils.spotify_utils import get_spotify_client, search_for_playlists, search_for_track, search_for_artist_top_tracks
+import time, re
+from datetime import datetime
+
+# Import modules
+from utils.enhanced_spotify_utils import get_spotify_client, search_for_playlists, search_for_track, search_for_artist_top_tracks
 from utils.voice_input import SpeechToTextConverter
 from utils.nlp_mood_detector import NlpMoodDetector
-from utils.intent_detector import IntentDetector
-from utils.chatbot import Chatbot  # Import the Chatbot
+from utils.enhanced_intent_detector import EnhancedIntentDetector
+from utils.enhanced_chatbot import EnhancedChatbot
+from utils.performance_analyzer import PerformanceAnalyzer
 
 # Load environment variables
 load_dotenv()
 
+# Configure appearance
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
+
+# Initialize performance analyzer
+performance_analyzer = PerformanceAnalyzer()
 
 class SmartPlaylistFinder(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        
+        # Enable high DPI scaling
+        self.tk.call('tk', 'scaling', 2.0)
+        
         self.initialization_successful = False
 
         try:
+            # Initialize components
             self.speech_converter = SpeechToTextConverter()
             self.mood_detector = NlpMoodDetector()
-            self.intent_detector = IntentDetector()
-            self.chatbot = Chatbot()  # Initialize the chatbot
+            self.intent_detector = EnhancedIntentDetector()
+            self.chatbot = EnhancedChatbot()
             self.playlists_data = []
+            
+            # Session tracking
+            self.session_start = datetime.now()
+            self.interaction_count = 0
+            
+            # Performance tracking
+            self.last_request_time = None
+            
         except FileNotFoundError as e:
             self.withdraw()
             if "emotion_classifier.pkl" in str(e):
@@ -38,64 +60,177 @@ class SmartPlaylistFinder(ctk.CTk):
             self.destroy()
             return
 
-        self.title("🎧 Smart Music Finder")
-        self.geometry("1000x600")
-        self.minsize(800, 500)
+        # Window Configuration
+        self.title("🎧 Smart Music Player")
+        self.geometry("1200x700")
+        self.minsize(1000, 600)
+
+        # Configure modern color scheme
+        self.bg_color = "#0F172A"  # Dark blue background
+        self.accent_color = "#3B82F6"  # Bright blue accent
+        self.secondary_color = "#1E293B"  # Lighter blue secondary
+        self.text_color = "#E2E8F0"  # Light gray text
+        self.configure(fg_color=self.bg_color)
 
         # Queues
         self.spotify_queue = queue.Queue()
         self.voice_queue = queue.Queue()
 
-        # Main Layout
+        # Main Layout with improved spacing
         self.grid_columnconfigure(0, weight=2)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
-
-        # Left: Chat Panel
-        self.chat_frame = ctk.CTkFrame(self, corner_radius=15)
-        self.chat_frame.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
-        self.chat_frame.grid_rowconfigure(0, weight=1)
-        self.chat_frame.grid_columnconfigure(0, weight=1)
-
-        self.chat_scroll_frame = ctk.CTkScrollableFrame(self.chat_frame, fg_color=self.chat_frame.cget("fg_color"))
-        self.chat_scroll_frame.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=5, pady=10)
-
-        # Use chatbot for the initial message
-        self.add_message("Bot", self.chatbot.get_response("hello"))
-
-        # Message entry + buttons
-        self.message_entry = ctk.CTkEntry(
-            self.chat_frame, placeholder_text="e.g., 'play happy songs' or 'songs by Queen'",
-            font=("Poppins", 12), corner_radius=10
+        
+        # Status Bar
+        self.status_frame = ctk.CTkFrame(self, height=30, fg_color=self.secondary_color)
+        self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+        self.status_frame.grid_columnconfigure(0, weight=1)
+        
+        self.status_label = ctk.CTkLabel(
+            self.status_frame, 
+            text="Ready",
+            font=("Poppins", 12),
+            text_color="#A0AEC0"
         )
-        self.message_entry.grid(row=1, column=0, padx=(10,5), pady=(0,10), sticky="ew")
+        self.status_label.grid(row=0, column=0, padx=10, pady=5)
+
+        # Left: Enhanced Chat Panel
+        self.chat_frame = ctk.CTkFrame(
+            self, 
+            corner_radius=15,
+            fg_color=self.secondary_color,
+            border_width=1,
+            border_color=self.accent_color
+        )
+        self.chat_frame.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
+        self.chat_frame.grid_rowconfigure(1, weight=1)  # Make chat area expand
+        self.chat_frame.grid_columnconfigure(0, weight=1)
+        
+        # Configure main window grid
+        self.grid_rowconfigure(0, weight=1)  # Make main content expand
+        
+        # Chat header with reduced height
+        self.chat_header = ctk.CTkFrame(
+            self.chat_frame,
+            fg_color=self.accent_color,
+            height=35,  # Reduced height
+            corner_radius=10
+        )
+        self.chat_header.grid(row=0, column=0, columnspan=3, padx=5, pady=(2,0), sticky="ew")  # Reduced top padding
+        self.chat_header.grid_propagate(False)
+
+        self.chat_title = ctk.CTkLabel(
+            self.chat_header,
+            text="💬 Chat with Smart Music Player",
+            font=("Poppins", 12, "bold"),  # Slightly smaller font
+            text_color="white"
+        )
+        self.chat_title.place(relx=0.5, rely=0.5, anchor="center")        # Enhanced chat area with custom styling
+        self.chat_scroll_frame = ctk.CTkScrollableFrame(
+            self.chat_frame, 
+            fg_color=self.secondary_color,
+            corner_radius=10,
+            height=500  # Set a fixed height
+        )
+        self.chat_scroll_frame.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)  # Reduced padding
+        self.chat_frame.grid_rowconfigure(1, weight=1)  # Make chat area expand
+
+        # Welcome message using enhanced chatbot
+        welcome_response = self.chatbot.get_response("hello")
+        self.add_message("Bot", welcome_response)
+
+        # Enhanced message entry with modern styling
+        self.message_frame = ctk.CTkFrame(
+            self.chat_frame,
+            fg_color=self.secondary_color,
+            corner_radius=10
+        )
+        self.message_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=(0,5), sticky="ew")
+        self.message_frame.grid_columnconfigure(0, weight=1)
+
+        self.message_entry = ctk.CTkEntry(
+            self.message_frame, 
+            placeholder_text="Type a message or ask for music...",
+            font=("Poppins", 12),
+            corner_radius=15,
+            height=32,  # Reduced height
+            border_width=1,
+            border_color=self.accent_color
+        )
+        self.message_entry.grid(row=0, column=0, padx=(10,5), pady=5, sticky="ew")
         self.message_entry.bind("<Return>", self.send_message)
 
+        # Enhanced voice button with animation support
         self.voice_button = ctk.CTkButton(
-            self.chat_frame, text="🎙", width=45, command=self.activate_voice_input,
-            font=("Poppins", 13, "bold")
+            self.message_frame,
+            text="🎙",
+            width=40,
+            height=40,
+            command=self.activate_voice_input,
+            font=("Poppins", 14, "bold"),
+            fg_color=self.accent_color,
+            corner_radius=20
         )
-        self.voice_button.grid(row=1, column=1, padx=5, pady=(0,10))
+        self.voice_button.grid(row=0, column=1, padx=5, pady=5)
 
+        # Enhanced send button
         self.send_button = ctk.CTkButton(
-            self.chat_frame, text="Send ➤", command=self.send_message,
-            font=("Poppins", 13, "bold")
+            self.message_frame,
+            text="➤",
+            width=40,
+            height=40,
+            command=self.send_message,
+            font=("Poppins", 14, "bold"),
+            fg_color=self.accent_color,
+            corner_radius=20
         )
-        self.send_button.grid(row=1, column=2, padx=(5,10), pady=(0,10))
+        self.send_button.grid(row=0, column=2, padx=(5,10), pady=5)
+        
+        # Loading indicator (hidden by default)
+        self.loading_label = ctk.CTkLabel(
+            self.message_frame,
+            text="🔄",
+            font=("Poppins", 14),
+            text_color=self.accent_color
+        )
+        self.loading_label.grid(row=0, column=3, padx=5, pady=5)
+        self.loading_label.grid_remove()
 
-        # Right: Recommendations Panel
-        self.results_frame = ctk.CTkFrame(self, corner_radius=15)
+        # Enhanced Recommendations Panel
+        self.results_frame = ctk.CTkFrame(
+            self, 
+            corner_radius=15,
+            fg_color=self.secondary_color,
+            border_width=1,
+            border_color=self.accent_color
+        )
         self.results_frame.grid(row=0, column=1, padx=(0,15), pady=15, sticky="nsew")
         self.results_frame.grid_rowconfigure(1, weight=1)
         self.results_frame.grid_columnconfigure(0, weight=1)
 
-        self.results_label = ctk.CTkLabel(
-            self.results_frame, text="🎵 Found Music", font=("Poppins", 16, "bold")
+        # Results header with modern styling
+        self.results_header = ctk.CTkFrame(
+            self.results_frame,
+            fg_color=self.accent_color,
+            height=40,
+            corner_radius=10
         )
-        self.results_label.grid(row=0, column=0, pady=(15,10))
+        self.results_header.grid(row=0, column=0, padx=5, pady=(5,0), sticky="ew")
+        self.results_header.grid_propagate(False)
 
+        self.results_label = ctk.CTkLabel(
+            self.results_header,
+            text="🎵 Found Music",
+            font=("Poppins", 14, "bold"),
+            text_color="white"
+        )
+        self.results_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Enhanced scrollable results area
         self.results_scroll_frame = ctk.CTkScrollableFrame(
-            self.results_frame, fg_color=self.results_frame.cget("fg_color")
+            self.results_frame,
+            fg_color=self.secondary_color,
+            corner_radius=10
         )
         self.results_scroll_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
@@ -106,18 +241,124 @@ class SmartPlaylistFinder(ctk.CTk):
         self.initialization_successful = True
 
     def add_message(self, sender, text):
-        if sender == "You":
-            bubble = ctk.CTkFrame(self.chat_scroll_frame, fg_color="#3B82F6", corner_radius=15)
-            bubble.pack(anchor="e", padx=10, pady=5, ipadx=10, ipady=5)
-            label = ctk.CTkLabel(bubble, text=text, font=("Poppins", 13), text_color="white", wraplength=400, justify="right")
-            label.pack()
-        else: # Bot
-            bubble = ctk.CTkFrame(self.chat_scroll_frame, fg_color="#4B5563", corner_radius=15)
-            bubble.pack(anchor="w", padx=10, pady=5, ipadx=10, ipady=5)
-            label = ctk.CTkLabel(bubble, text=text, font=("Poppins", 13), text_color="white", wraplength=400, justify="left")
-            label.pack()
+        """Add a message to the chat with enhanced styling and animations."""
+        if sender == "You":  # User message (right side)
+            # Container frame for better alignment
+            container = ctk.CTkFrame(
+                self.chat_scroll_frame,
+                fg_color="transparent"
+            )
+            container.pack(fill="x", pady=2)
+            
+            # Time label above message
+            time_label = ctk.CTkLabel(
+                container,
+                text=datetime.now().strftime("%H:%M"),
+                font=("Poppins", 10, "bold"),
+                text_color="#94A3B8"
+            )
+            time_label.pack(anchor="e", padx=20, pady=(2,0))
+            
+            # Message bubble
+            bubble = ctk.CTkFrame(
+                container,
+                fg_color=self.accent_color,
+                corner_radius=12,
+                border_width=1,
+                border_color="#60A5FA"
+            )
+            bubble.pack(anchor="e", padx=15, pady=(0,2), ipadx=12, ipady=8)
+            
+            # Message text
+            label = ctk.CTkLabel(
+                bubble,
+                text=text,
+                font=("Poppins", 13),
+                text_color="white",
+                wraplength=400,
+                justify="left"  # Always left-align text
+            )
+            label.pack(padx=10, pady=2)  # Increased padding
+            
+        else:  # Bot
+            # Container frame for better alignment
+            container = ctk.CTkFrame(
+                self.chat_scroll_frame,
+                fg_color="transparent"
+            )
+            container.pack(fill="x", pady=2)
+            
+            # Time label above message (left side)
+            time_label = ctk.CTkLabel(
+                container,
+                text=datetime.now().strftime("%H:%M"),
+                font=("Poppins", 10, "bold"),
+                text_color="#94A3B8"
+            )
+            time_label.pack(anchor="w", padx=20, pady=(2,0))
+            
+            # Message bubble
+            bubble = ctk.CTkFrame(
+                container,
+                fg_color="#1E293B",
+                corner_radius=12,
+                border_width=1,
+                border_color="#3B82F6"
+            )
+            bubble.pack(anchor="w", padx=15, pady=(0,2), ipadx=12, ipady=6)
+            
+            # Bot header with icon
+            header_frame = ctk.CTkFrame(
+                bubble,
+                fg_color="transparent"
+            )
+            header_frame.pack(fill="x", padx=8, pady=(4,2))
+            
+            icon_label = ctk.CTkLabel(
+                header_frame,
+                text="🤖",
+                font=("Poppins", 13)
+            )
+            icon_label.pack(side="left", padx=(0,4))
+            
+            name_label = ctk.CTkLabel(
+                header_frame,
+                text="Smart Music Bot",
+                font=("Poppins", 11, "bold"),
+                text_color="#E2E8F0"
+            )
+            name_label.pack(side="left")
+            
+            # Message text
+            label = ctk.CTkLabel(
+                bubble,
+                text=text,
+                font=("Poppins", 13),
+                text_color="white",
+                wraplength=400,
+                justify="left"
+            )
+            label.pack(padx=5)
+            
+            # Time stamp with better visibility and padding
+            time_label = ctk.CTkLabel(
+                bubble,
+                text=datetime.now().strftime("%H:%M"),
+                font=("Poppins", 10, "bold"),  # Made bold
+                text_color="#94A3B8"  # Brighter color
+            )
+            time_label.pack(anchor="w", padx=15, pady=(5,8))  # Increased padding
 
-        self.chat_scroll_frame._parent_canvas.yview_moveto(1.0)
+        # Auto-scroll to latest message
+        self.after(10, lambda: self.chat_scroll_frame._parent_canvas.yview_moveto(1.0))
+        
+        # Update status
+        self.status_label.configure(text="Ready")
+        if hasattr(self, 'loading_label'):
+            self.loading_label.grid_remove()
+        
+        # Track interaction
+        self.interaction_count += 1
 
     def activate_voice_input(self):
         self.voice_button.configure(state="disabled")
@@ -144,52 +385,236 @@ class SmartPlaylistFinder(ctk.CTk):
             self.after(100, self.check_voice_queue)
 
     def send_message(self, event=None):
+        """Process and respond to user messages with enhanced handling."""
         user_input = self.message_entry.get().strip()
         if not user_input:
             return
 
+        # Record start time for performance tracking
+        start_time = time.time()
+        self.last_request_time = start_time
+
+        # Update UI state
         self.add_message("You", user_input)
         self.message_entry.delete(0, "end")
         self.send_button.configure(state="disabled")
+        self.loading_label.grid()
+        self.status_label.configure(text="Processing message...")
 
-        # 1. Detect Intent
+        # Clear previous results before starting new search
+        self._clear_results_area()
+
+        # First detect mood using our trained model
+        detected_mood = self.mood_detector.predict_mood(user_input)
+        print(f"Detected mood: {detected_mood}")  # Debug print
+
+        # Get intent
         intent_data = self.intent_detector.detect_intent(user_input)
         intent = intent_data.get("intent")
         entity = intent_data.get("entity")
 
-        # 2. Handle Intent
-        if intent in ["GREETING", "QUESTION"]:
-            # Use the chatbot for conversational responses
+        # Log intent detection performance
+        performance_analyzer.log_intent_detection(
+            predicted_intent=intent,
+            actual_intent=intent  # In a real system, you'd compare with ground truth
+        )
+
+        # Enhanced Intent Handling
+        print(f"[DEBUG] Input: '{user_input}'")
+        print(f"[DEBUG] Detected intent: '{intent}', entity: '{entity}'")  # Enhanced debug print
+        
+        # Check for greetings and general conversation first
+        if intent in ["GREETING", "Greeting"]:
             response = self.chatbot.get_response(user_input)
             self.add_message("Bot", response)
             self.send_button.configure(state="normal")
-        elif intent == "ARTIST":
-            self.add_message("Bot", f"Searching for top tracks by {entity}...")
-            threading.Thread(target=self.fetch_artist_tracks_thread, args=(entity,), daemon=True).start()
-        elif intent == "SONG":
-            self.add_message("Bot", f"Searching for the song '{entity}'...")
-            threading.Thread(target=self.fetch_track_thread, args=(entity,), daemon=True).start()
-        elif intent == "ACTIVITY":
-            mood = intent_data["mood"]
-            self.add_message("Bot", f"For {entity}, I recommend some {mood} music. Looking for playlists...")
-            threading.Thread(target=self.fetch_playlists_thread, args=(mood,), daemon=True).start()
-        elif intent == "MOOD":
-            predicted_mood = self.mood_detector.predict_mood(user_input)
-            self.add_message("Bot", f"It sounds like you're feeling {predicted_mood}. Let me find some playlists for that...")
-            threading.Thread(target=self.fetch_playlists_thread, args=(predicted_mood,), daemon=True).start()
-        else: # Fallback
-            # Use the chatbot if intent is unclear
-            response = self.chatbot.get_response(user_input)
-            self.add_message("Bot", response)
+            return
+
+        # Check for help requests
+        if intent == "Help":
+            help_message = "I can help you find music! Try saying things like:\n• 'I'm feeling happy' (for mood-based playlists)\n• 'Play Faded by Alan Walker' (for specific songs)\n• 'Find songs by Taylor Swift' (for artist tracks)\n• 'I want music for studying' (for activity playlists)"
+            self.add_message("Bot", help_message)
             self.send_button.configure(state="normal")
+            return
+
+        # Handle specific intents
+        if intent == "SongSearch":
+            print(f"Song search detected for: {entity}")
+            self.status_label.configure(text="🎵 Searching for your song...")
+            self.add_message("Bot", "🎵 Let me find that track for you!")
+            threading.Thread(
+                target=self.fetch_track_thread,
+                args=(user_input,),
+                daemon=True
+            ).start()
+            return
+
+        elif intent == "ArtistSearch":
+            print(f"Artist search detected for: {entity}")
+            self.status_label.configure(text=f"Searching for music by {entity}...")
+            self.add_message("Bot", f"🔍 Let me find some great tracks by {entity}...")
+            threading.Thread(
+                target=self.fetch_artist_tracks_thread,
+                args=(entity,),
+                daemon=True
+            ).start()
+            return
+
+        elif intent == "ActivitySearch":
+            print(f"Activity search detected: {entity}")
+            activity_responses = {
+                "studying": ("Finding study music...", "Perfect! I'll find some great music to help you focus and study. Let me search for some concentration-friendly playlists!", "calm"),
+                "workout": ("Finding workout music...", "Time to get pumped! I'll find some energetic music to power your workout!", "happy"),
+                "relaxation": ("Finding relaxing music...", "I'll help you unwind with some peaceful, relaxing music!", "calm"),
+                "party": ("Finding party music...", "Let's get this party started! I'll find some amazing dance music for you!", "happy"),
+                "work": ("Finding work music...", "Let me find some productive background music for your work session!", "calm"),
+                "gaming": ("Finding gaming music...", "Let's find some epic music for your gaming session!", "happy")
+            }
+            
+            if entity in activity_responses:
+                status, message, mood = activity_responses[entity]
+                self.status_label.configure(text=status)
+                self.add_message("Bot", message)
+                threading.Thread(
+                    target=self.fetch_playlists_thread,
+                    args=(mood,),
+                    daemon=True
+                ).start()
+                return
+
+        elif intent == "DirectMusicSearch":
+            print(f"Direct music search detected: {entity}")
+            self.status_label.configure(text=f"Finding {entity} music...")
+            self.add_message("Bot", f"I'll find some great {entity} music for you!")
+            threading.Thread(
+                target=self.fetch_playlists_thread,
+                args=(entity,),
+                daemon=True
+            ).start()
+            return
+
+        elif intent == "MoodSearch":
+            print(f"Mood search detected: {entity}")
+            
+            # Test Spotify connection first
+            print("[DEBUG] Testing Spotify connection...")
+            from utils.enhanced_spotify_utils import get_spotify_client
+            test_sp = get_spotify_client()
+            if not test_sp:
+                error_msg = "❌ Spotify connection failed. Please check your .env file with SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET"
+                self.add_message("Bot", error_msg)
+                self.send_button.configure(state="normal")
+                return
+            else:
+                print("[DEBUG] Spotify connection successful")
+            
+            # Provide empathetic chatbot responses for emotional statements
+            mood_responses = {
+                "sad": [
+                    "I understand you're going through a difficult time. Music can be really healing - let me find some comforting songs that might help you feel better.",
+                    "I'm sorry you're feeling this way. Sometimes music can provide comfort when we need it most. Let me find some soothing tracks for you.",
+                    "It sounds like you're having a tough time. Music has a way of helping us process our emotions. I'll find some gentle, comforting music for you."
+                ],
+                "happy": [
+                    "I'm glad you're feeling good! Let's keep those positive vibes going with some uplifting music!",
+                    "That's wonderful to hear! I'll find some great music to match your happy mood!"
+                ],
+                "angry": [
+                    "I can sense you're feeling frustrated. Music can be a great outlet for intense emotions. Let me find something that resonates with how you're feeling.",
+                    "It sounds like you're dealing with some strong emotions. Let me find some music that might help you work through this."
+                ],
+                "calm": [
+                    "I'll find some peaceful music that matches your calm state of mind.",
+                    "Let me find some relaxing music for you."
+                ]
+            }
+            
+            # Get appropriate response
+            responses = mood_responses.get(entity, ["Let me find some music that matches your mood."])
+            response_message = responses[0]  # Use first response for now
+            
+            self.status_label.configure(text=f"Finding {entity} music...")
+            self.add_message("Bot", response_message)
+            threading.Thread(
+                target=self.fetch_playlists_thread,
+                args=(entity,),
+                daemon=True
+            ).start()
+            return
+
+        # For unrecognized intents, provide a helpful response
+        if intent == "Chat":
+            fallback_response = "I'm not sure I understand. I'm here to help you find music! You can ask me to:\n• Find songs by an artist\n• Play a specific song\n• Get music for activities like studying or working out\n• Find music based on your mood"
+            self.add_message("Bot", fallback_response)
+            self.send_button.configure(state="normal")
+            return
+
+        # Default fallback
+        self.add_message("Bot", "I couldn't understand your request. Try asking for music, songs, or playlists!")
+        self.send_button.configure(state="normal")
+
+        # Log response time
+        end_time = time.time()
+        response_time = end_time - start_time
+        performance_analyzer.log_response_time(response_time)
 
     def fetch_track_thread(self, track_name):
-        sp = get_spotify_client()
-        if not sp:
-            self.spotify_queue.put(("Error", "Could not connect to Spotify. Check your .env file."))
-            return
-        tracks = search_for_track(sp, track_name)
-        self.spotify_queue.put(("TRACKS", tracks))
+        try:
+            # First update UI
+            self.spotify_queue.put(("Status", "[INFO] Connecting to Spotify..."))
+
+            # Get Spotify client
+            sp = get_spotify_client()
+            if not sp:
+                print("[ERROR] Could not connect to Spotify")
+                self.spotify_queue.put(("Error", "[ERROR] Could not connect to Spotify. Please check your internet connection and .env file."))
+                return
+
+            self.spotify_queue.put(("Status", "[INFO] Searching for tracks..."))
+
+            # Perform search
+            tracks = search_for_track(sp, track_name, limit=5)
+
+            if not tracks:
+                print("No tracks found")
+                self.spotify_queue.put(("TRACKS", []))
+                self.add_message("Bot", "I couldn't find any tracks matching your request. Try being more specific or check the spelling.")
+            else:
+                print(f"\nFound {len(tracks)} tracks:")
+                for i, track in enumerate(tracks, 1):
+                    print(f"{i}. {track.get('name')} - {track.get('artist')}")
+                self.spotify_queue.put(("TRACKS", tracks))
+
+        except Exception as e:
+            print(f"Error while searching: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            # Safe error message without Unicode characters
+            error_msg = "[ERROR] An error occurred while searching. Please try a different search term."
+            self.spotify_queue.put(("Error", error_msg))
+
+    def _parse_song_request(self, query):
+        """Enhanced song request parsing."""
+        patterns = [
+            r"(?i)play\s+(.+?)\s+(?:by|from)\s+(.+)",  # "play X by Y"
+            r"(?i)i\s+want\s+(.+?)\s+(?:by|from)\s+(.+)",  # "I want X by Y"
+            r"(?i)find\s+(.+?)\s+(?:by|from)\s+(.+)",  # "find X by Y"
+            r"(?i)search\s+for\s+(.+?)\s+(?:by|from)\s+(.+)",  # "search for X by Y"
+            r"(?i)(.+?)\s+(?:by|from)\s+(.+)"  # "X by Y"
+        ]
+        
+        for pattern in patterns:
+            match = re.match(pattern, query)
+            if match:
+                return {
+                    'title': match.group(1).strip(),
+                    'artist': match.group(2).strip()
+                }
+        
+        return {
+            'title': query,
+            'artist': None
+        }
 
     def fetch_artist_tracks_thread(self, artist_name):
         sp = get_spotify_client()
@@ -199,64 +624,340 @@ class SmartPlaylistFinder(ctk.CTk):
         tracks = search_for_artist_top_tracks(sp, artist_name)
         self.spotify_queue.put(("TRACKS", tracks))
 
-    def fetch_playlists_thread(self, query):
-        sp = get_spotify_client()
-        if not sp:
-            self.spotify_queue.put(("Error", "Could not connect to Spotify. Please check your SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET in the .env file."))
-            return
-        playlists = search_for_playlists(sp, query)
-        self.spotify_queue.put(("PLAYLISTS", playlists))
+    def fetch_playlists_thread(self, mood):
+        try:
+            print(f"[DEBUG] Starting playlist search for mood: {mood}")
+            
+            # Load emotion responses to get playlist suggestions
+            emotion_responses_path = os.path.join(os.path.dirname(__file__), "data", "emotion_responses.json")
+            print(f"[DEBUG] Loading emotion responses from: {emotion_responses_path}")
+            
+            with open(emotion_responses_path, 'r') as f:
+                mood_data = json.load(f)["moods"]
+            print(f"[DEBUG] Loaded mood data successfully")
+
+            # Map input mood to emotion category
+            emotion_map = {
+                "sad": "sadness",
+                "sadness": "sadness",
+                "happy": "joy",
+                "joy": "joy",
+                "angry": "anger",
+                "anger": "anger",
+                "calm": "neutral",
+                "neutral": "neutral",
+                "energetic": "joy",  # Map energetic to joy for upbeat music
+                "romantic": "neutral"  # Map romantic to neutral for calm music
+            }
+            emotion = emotion_map.get(mood.lower(), "neutral")
+            print(f"[DEBUG] Mapped mood '{mood}' to emotion '{emotion}'")
+
+            # Get playlist keywords for the emotion
+            if emotion in mood_data and "playlists" in mood_data[emotion]:
+                query = " ".join(mood_data[emotion]["playlists"])
+                print(f"[DEBUG] Using playlist keywords: {mood_data[emotion]['playlists']}")
+            else:
+                query = mood  # Fallback to using the mood directly
+                print(f"[DEBUG] Using fallback query: {query}")
+
+            print(f"[DEBUG] Final search query: '{query}'")
+            
+            # Get Spotify client
+            print(f"[DEBUG] Getting Spotify client...")
+            sp = get_spotify_client()
+            if not sp:
+                error_msg = "Could not connect to Spotify. Please check your SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET in the .env file."
+                print(f"[ERROR] {error_msg}")
+                self.spotify_queue.put(("Error", error_msg))
+                return
+
+            print(f"[DEBUG] Spotify client obtained successfully")
+            
+            # Search for playlists
+            print(f"[DEBUG] Searching for playlists...")
+            playlists = search_for_playlists(sp, query)
+            print(f"[DEBUG] Search completed. Found {len(playlists) if playlists else 0} playlists")
+
+            if playlists:
+                print(f"[DEBUG] Sending {len(playlists)} playlists to UI")
+                self.spotify_queue.put(("PLAYLISTS", playlists))
+            else:
+                print(f"[DEBUG] No playlists found, trying fallback search...")
+                # Try a more generic search as fallback
+                fallback_query = "music"  # Very generic fallback
+                fallback_playlists = search_for_playlists(sp, fallback_query)
+                if fallback_playlists:
+                    print(f"[DEBUG] Found {len(fallback_playlists)} playlists with fallback query")
+                    self.spotify_queue.put(("PLAYLISTS", fallback_playlists))
+                else:
+                    print(f"[DEBUG] No playlists found even with fallback query")
+                    self.spotify_queue.put(("Error", f"I couldn't find any playlists for {mood} mood. Try a different mood!"))
+
+        except Exception as e:
+            error_msg = f"Error in fetch_playlists_thread: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            import traceback
+            print(traceback.format_exc())
+            self.spotify_queue.put(("Error", "An error occurred while searching for playlists."))
 
     def check_spotify_queue(self):
         try:
             status, result = self.spotify_queue.get(block=False)
             self.send_button.configure(state="normal")
+            
+            # Debug print (safely handle Unicode)
+            try:
+                print(f"Received from Spotify queue - Status: {status}, Result type: {type(result)}")
+                if isinstance(result, (list, dict)):
+                    print(f"Results count: {len(result) if isinstance(result, list) else 'N/A'}")
+            except UnicodeEncodeError:
+                print(f"Received from Spotify queue - Status: {status}, Results: [Unicode data]")
 
             if status == "Error":
-                self.add_message("Bot", f"⚠️ {result}")
+                self.add_message("Bot", f"[WARNING] {result}")
                 messagebox.showerror("Spotify Error", result)
-            else:
+            elif status in ["TRACKS", "PLAYLISTS"]:
                 self.update_results_display(status, result)
+            else:
+                print(f"Unknown status: {status}")
         except queue.Empty:
             pass
         finally:
             self.after(100, self.check_spotify_queue)
 
     def update_results_display(self, result_type, results):
-        for widget in self.results_scroll_frame.winfo_children():
-            widget.destroy()
+        """Update results display with enhanced styling and metrics tracking."""
+        try:
+            print(f"\n[UI] Updating results display")
+            print(f"[UI] Type: {result_type}")
+            print(f"[UI] Results count: {len(results) if results else 0}")
+            print(f"[UI] Results data: {results[:2] if results else 'None'}")  # Show first 2 results
 
-        if not results:
-            self.add_message("Bot", "Sorry, I couldn't find anything for that.")
-            no_results_label = ctk.CTkLabel(self.results_scroll_frame, text="No results found.")
-            no_results_label.pack(pady=10, padx=10)
-            return
+            # Clear existing results
+            for widget in self.results_scroll_frame.winfo_children():
+                widget.destroy()
 
-        if result_type == "PLAYLISTS":
-            self.results_label.configure(text="🎵 Found Playlists")
-            self.add_message("Bot", "Here are some playlists I found. Click one to open it!")
-            for p in results:
-                playlist_name = p['name']
-                owner_name = p['owner']
-                btn_text = f"▶ {playlist_name} (by {owner_name})"
-                btn = ctk.CTkButton(
-                    self.results_scroll_frame, text=btn_text, font=("Poppins", 13), anchor="w",
-                    command=lambda url=p['url'], name=p['name']: self.open_in_spotify(url, name)
+            # Handle no results case
+            if not results:
+                print("[UI] No results to display")
+                self._show_no_results()
+                return
+
+            # Update UI based on result type
+            if result_type == "TRACKS":
+                self.results_label.configure(text="♪ Found Tracks")
+                self.add_message("Bot", "Here are the tracks I found. Click any to open in Spotify!")
+                
+                print(f"[UI] Creating cards for {len(results)} tracks")
+                for idx, track in enumerate(results):
+                    try:
+                        print(f"[UI] Creating card for track: {track['name']}")
+                        card = self._create_result_card(
+                            title=track['name'],
+                            subtitle=f"by {track['artist']}" + (f" (feat. {', '.join(track['all_artists'][1:])})" if len(track.get('all_artists', [])) > 1 else ""),
+                            icon="♪",
+                            url=track.get('url', '#'),
+                            name=track['name']
+                        )
+                        card.pack(fill="x", padx=5, pady=2)
+                        print(f"[UI] Successfully created card {idx + 1}")
+                    except Exception as e:
+                        print(f"[Error] Failed to create card for track {idx}: {e}")
+                
+            elif result_type == "PLAYLISTS":
+                self.results_label.configure(text="♫ Found Playlists")
+                self.add_message("Bot", "I found these playlists that might interest you. Click any to open in Spotify!")
+                
+                print(f"[UI] Creating cards for {len(results)} playlists")
+                for idx, playlist in enumerate(results):
+                    try:
+                        print(f"[UI] Creating card for playlist: {playlist['name']}")
+                        card = self._create_result_card(
+                            title=playlist['name'],
+                            subtitle=f"Created by {playlist['owner']}",
+                            icon="♫",
+                            url=playlist.get('url', '#'),
+                            name=playlist['name'],
+                            metrics=f"Tracks: {playlist.get('tracks_total', '?')} • Followers: {playlist.get('followers', '?')}"
+                        )
+                        if card:  # Make sure card was created successfully
+                            card.pack(fill="x", padx=5, pady=2)
+                            print(f"[UI] Successfully created and packed card {idx + 1}")
+                        else:
+                            print(f"[ERROR] Card creation returned None for playlist {idx}")
+                    except Exception as e:
+                        print(f"[Error] Failed to create card for playlist {idx}: {e}")
+                        import traceback
+                        print(traceback.format_exc())
+
+            # Update metrics
+            satisfaction_score = min(len(results) / 10.0, 1.0)
+            performance_analyzer.log_chat_satisfaction(satisfaction_score)
+            
+            # Update status
+            self.status_label.configure(text=f"Found {len(results)} results")
+            self.loading_label.grid_remove()
+
+        except Exception as e:
+            print(f"[Error] Failed to update results display: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            self._show_no_results(error=True)
+
+    def _show_no_results(self, error=False):
+        """Display a no results or error message."""
+        no_results_frame = ctk.CTkFrame(
+            self.results_scroll_frame,
+            fg_color=self.secondary_color,
+            corner_radius=15,
+            border_width=1,
+            border_color=self.accent_color
+        )
+        no_results_frame.pack(fill="x", padx=10, pady=10)
+        
+        icon = "⚠️" if error else "🔍"
+        text = "An error occurred while searching" if error else "No results found"
+        hint = "Please try again later" if error else "Try being more specific or check the spelling"
+        
+        # Icon
+        icon_label = ctk.CTkLabel(
+            no_results_frame,
+            text=icon,
+            font=("Poppins", 24),
+            text_color="#A0AEC0"
+        )
+        icon_label.pack(pady=(15,5))
+        
+        # Main message
+        message_label = ctk.CTkLabel(
+            no_results_frame,
+            text=text,
+            font=("Poppins", 14, "bold"),
+            text_color="#A0AEC0"
+        )
+        message_label.pack(pady=5)
+        
+        # Hint
+        hint_label = ctk.CTkLabel(
+            no_results_frame,
+            text=hint,
+            font=("Poppins", 12),
+            text_color="#64748B"
+        )
+        hint_label.pack(pady=(0,15))
+        
+        # Update status
+        self.status_label.configure(text="No results found")
+        self.loading_label.grid_remove()
+
+    def _clear_results_area(self):
+        """Clear the results display area before starting a new search."""
+        try:
+            # Clear existing results
+            for widget in self.results_scroll_frame.winfo_children():
+                widget.destroy()
+
+            # Reset results label to default state
+            self.results_label.configure(text="♪ Found Music")
+
+        except Exception as e:
+            print(f"Error clearing results area: {e}")
+
+    def _create_result_card(self, title, subtitle, icon, url, name, metrics=None):
+        """Create a styled result card for tracks and playlists."""
+        try:
+            # Create main card frame
+            card = ctk.CTkFrame(
+                self.results_scroll_frame,
+                fg_color="#1E293B",
+                corner_radius=10,
+                cursor="hand2"  # Show hand cursor on hover
+            )
+
+            # Use grid geometry manager consistently
+            card.grid_columnconfigure(0, weight=1)
+
+            # Make the entire card clickable by binding to the card itself
+            card.bind("<Button-1>", lambda e: self.open_in_spotify(url, name))
+
+            # Add hover effect for better UX
+            def on_enter(e):
+                card.configure(fg_color="#2D3748")  # Slightly lighter on hover
+
+            def on_leave(e):
+                card.configure(fg_color="#1E293B")  # Back to original color
+
+            card.bind("<Enter>", on_enter)
+            card.bind("<Leave>", on_leave)
+
+            # Create content container
+            content = ctk.CTkFrame(card, fg_color="transparent")
+            content.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
+            content.grid_columnconfigure(1, weight=1)
+
+            # Icon - using simple text symbols instead of Unicode
+            icon_text = "♪" if icon == "♪" else "♫"
+            icon_label = ctk.CTkLabel(
+                content,
+                text=icon_text,
+                font=("Arial", 20, "bold"),  # Use Arial font for better compatibility
+                text_color="#3B82F6"  # Blue color for icons
+            )
+            icon_label.grid(row=0, column=0, rowspan=3, padx=(5,10))
+
+            # Title
+            title_label = ctk.CTkLabel(
+                content,
+                text=title,
+                font=("Poppins", 14, "bold"),
+                text_color="white",
+                anchor="w",
+                justify="left"
+            )
+            title_label.grid(row=0, column=1, sticky="w")
+
+            # Subtitle
+            subtitle_label = ctk.CTkLabel(
+                content,
+                text=subtitle,
+                font=("Poppins", 12),
+                text_color="#94A3B8",
+                anchor="w",
+                justify="left"
+            )
+            subtitle_label.grid(row=1, column=1, sticky="w", pady=(2,0))
+
+            # Optional metrics
+            if metrics:
+                metrics_label = ctk.CTkLabel(
+                    content,
+                    text=metrics,
+                    font=("Poppins", 11),
+                    text_color="#64748B",
+                    anchor="w",
+                    justify="left"
                 )
-                btn.pack(fill="x", padx=5, pady=(0, 5))
+                metrics_label.grid(row=2, column=1, sticky="w", pady=(2,0))
 
-        elif result_type == "TRACKS":
-            self.results_label.configure(text="🎵 Found Tracks")
-            self.add_message("Bot", "Here are some tracks I found. Click one to open it!")
-            for t in results:
-                track_name = t['name']
-                artist_name = t['artist']
-                btn_text = f"🎵 {track_name} (by {artist_name})"
-                btn = ctk.CTkButton(
-                    self.results_scroll_frame, text=btn_text, font=("Poppins", 13), anchor="w",
-                    command=lambda url=t['url'], name=t['name']: self.open_in_spotify(url, name)
-                )
-                btn.pack(fill="x", padx=5, pady=(0, 5))
+            return card
+
+        except Exception as e:
+            print(f"Error creating result card: {str(e)}")
+            # Return error card
+            error_card = ctk.CTkFrame(
+                self.results_scroll_frame,
+                fg_color="#1E293B",
+                corner_radius=10,
+                height=80
+            )
+            error_label = ctk.CTkLabel(
+                error_card,
+                text="[WARNING] Failed to display result",
+                font=("Poppins", 12),
+                text_color="#EF4444"
+            )
+            error_label.pack(expand=True)
+            return error_card
 
     def open_in_spotify(self, url, name):
         try:

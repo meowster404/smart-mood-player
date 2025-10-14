@@ -11,9 +11,9 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 
 # Define paths relative to the project root
-DIALOGS_PATH = os.path.join(project_root, "smart-mood-player/data", "dialogs.txt")
-INTENT_PATH = os.path.join(project_root, "smart-mood-player/data", "intent.json")
-MODEL_DIR = os.path.join(project_root, "smart-mood-player/models")
+DIALOGS_PATH = os.path.join(project_root, "data", "dialogs.txt")
+INTENT_PATH = os.path.join(project_root, "data", "intent.json")
+MODEL_DIR = os.path.join(project_root, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "chatbot_model.pkl")
 
 # Create models directory if it doesn't exist

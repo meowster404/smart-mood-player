@@ -20,7 +20,7 @@ class SpeechToTextConverter:
         with sr.Microphone() as source:
             print("🎤 Adjusting for ambient noise... Please wait.")
             self.recognizer.adjust_for_ambient_noise(source, duration=1)
-            print("✅ Ready to listen. Please speak now.")
+            print("[SUCCESS] Ready to listen. Please speak now.")
 
             try:
                 # Listen for the user's input with a timeout
@@ -33,13 +33,13 @@ class SpeechToTextConverter:
                 return text
 
             except sr.WaitTimeoutError:
-                print("⚠️ Listening timed out while waiting for phrase to start.")
+                print("[WARNING] Listening timed out while waiting for phrase to start.")
                 return None
             except sr.UnknownValueError:
-                print("❌ Google Speech Recognition could not understand the audio.")
+                print("[ERROR] Google Speech Recognition could not understand the audio.")
                 return None
             except sr.RequestError as e:
-                print(f"⚠️ Could not request results from Google Speech Recognition service; {e}")
+                print(f"[WARNING] Could not request results from Google Speech Recognition service; {e}")
                 return None
 
 # Example of how to use this file directly for testing

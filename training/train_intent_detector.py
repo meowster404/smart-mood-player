@@ -30,7 +30,7 @@ Therefore, no training is necessary for this component.
 
 # Verify that the intent data file exists
 if os.path.exists(INTENT_DATA_PATH):
-    print(f"✅ Intent data file found at {INTENT_DATA_PATH}")
+    print(f"[SUCCESS] Intent data file found at {INTENT_DATA_PATH}")
 else:
     # This error message will now show the correct, expected path
-    print(f"❌ Error: The intent data file was not found at {INTENT_DATA_PATH}")
+    print(f"[ERROR] The intent data file was not found at {INTENT_DATA_PATH}")

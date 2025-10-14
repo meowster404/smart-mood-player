@@ -8,12 +8,17 @@
         "Hola",
         "Hello",
         "Hello there",
-        "Hya"
+        "Hya",
+        "Hey",
+        "Good morning",
+        "Good afternoon",
+        "Good evening"
       ],
       "responses": [
         "Hello! I'm TuneBot. What kind of music are you in the mood for?",
         "Hi there! Ready to discover some new tunes? Tell me what you're looking for!",
-        "Hey! What can I help you listen to today?"
+        "Hey! What can I help you listen to today?",
+        "Welcome! Looking for some music? Just tell me what you'd like to hear!"
       ],
       "extension": {
         "function": "",
@@ -22,11 +27,92 @@
       },
       "context": {
         "in": "",
-        "out": "",
+        "out": "greeting",
         "clear": false
       },
       "entityType": "NA",
       "entities": []
+    },
+    {
+      "intent": "SongSearch",
+      "text": [
+        "play faded from alan walker",
+        "i want to listen to shape of you by ed sheeran",
+        "find me the song believer",
+        "search for thunder by imagine dragons",
+        "play despacito",
+        "can you play stay with me",
+        "find perfect by ed sheeran",
+        "i want faded from alan walker",
+        "play something by coldplay",
+        "find a song called perfect"
+      ],
+      "responses": [
+        "Searching for that song...",
+        "Let me find that track for you!",
+        "Looking up that song now..."
+      ],
+      "extension": {
+        "function": "extensions.music.searchSong",
+        "entities": true,
+        "responses": [
+          "Here's what I found for '%%SONG_TITLE%%'",
+          "I found these matches for '%%SONG_TITLE%%'"
+        ]
+      },
+      "context": {
+        "in": "",
+        "out": "songProvided",
+        "clear": false
+      },
+      "entityType": "SONG",
+      "entities": [
+        {
+          "entity": "SONG_TITLE",
+          "rangeFrom": 1,
+          "rangeTo": -1
+        }
+      ]
+    },
+    {
+      "intent": "ArtistSearch",
+      "text": [
+        "play songs by lisa",
+        "find music from LiSA",
+        "show me songs by alan walker",
+        "i want to hear ed sheeran songs",
+        "play something from imagine dragons",
+        "show tracks by coldplay",
+        "find taylor swift songs",
+        "what songs does adele have",
+        "music by the weeknd"
+      ],
+      "responses": [
+        "Looking up songs by %%ARTIST%%...",
+        "Finding tracks from %%ARTIST%%...",
+        "Searching for music by %%ARTIST%%..."
+      ],
+      "extension": {
+        "function": "extensions.music.searchArtist",
+        "entities": true,
+        "responses": [
+          "Here are some popular tracks by %%ARTIST%%",
+          "I found these songs by %%ARTIST%%"
+        ]
+      },
+      "context": {
+        "in": "",
+        "out": "artistProvided",
+        "clear": false
+      },
+      "entityType": "ARTIST",
+      "entities": [
+        {
+          "entity": "ARTIST_NAME",
+          "rangeFrom": 3,
+          "rangeTo": -1
+        }
+      ]
     },
     {
       "intent": "CourtesyGreeting",

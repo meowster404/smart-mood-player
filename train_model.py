@@ -12,10 +12,10 @@ def run_script(script_name):
         subprocess.run([sys.executable, script_path], check=True)
         print(f"--- Finished {script_path} ---\n")
     except FileNotFoundError:
-        print(f"❌ Error: Script not found at {script_path}")
+        print(f"[ERROR] Script not found at {script_path}")
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error running {script_path}: {e}")
+        print(f"[ERROR] Error running {script_path}: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
@@ -25,4 +25,4 @@ if __name__ == "__main__":
     run_script("train_chatbot.py")
     run_script("train_intent_detector.py") # This script just prints info
 
-    print("✅ All training processes completed successfully!")
+    print("[SUCCESS] All training processes completed successfully!")
