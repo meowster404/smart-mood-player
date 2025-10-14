@@ -170,7 +170,7 @@ cython_debug/
 # Data files
 *.csv
 *.json
-!data/intent.json
+!data/
 !requirements.txt
 
 # Log files

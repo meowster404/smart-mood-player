@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 import json
 from collections import defaultdict
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
 class PerformanceAnalyzer:
     def __init__(self, log_dir="analysis_logs"):
@@ -191,3 +192,36 @@ class PerformanceAnalyzer:
         self.metrics['timestamps'] = [datetime.fromisoformat(ts) for ts in data['timestamps']]
         
         return data
+
+    def compute_ml_metrics(self, y_true, y_pred, labels=None):
+        """Compute comprehensive ML metrics for model evaluation."""
+        metrics = {}
+        metrics['accuracy'] = accuracy_score(y_true, y_pred)
+        metrics['precision'] = precision_score(y_true, y_pred, average='weighted', labels=labels)
+        metrics['recall'] = recall_score(y_true, y_pred, average='weighted', labels=labels)
+        metrics['f1_score'] = f1_score(y_true, y_pred, average='weighted', labels=labels)
+
+        # Confusion matrix
+        cm = confusion_matrix(y_true, y_pred, labels=labels)
+        metrics['confusion_matrix'] = cm.tolist()
+
+        return metrics
+
+    def plot_confusion_matrix(self, cm, labels, save_path=None):
+        """Plot confusion matrix."""
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=labels, yticklabels=labels)
+        plt.title('Confusion Matrix')
+        plt.ylabel('Actual')
+        plt.xlabel('Predicted')
+
+        if save_path:
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
+
+    def generate_classification_report(self, y_true, y_pred, labels=None):
+        """Generate a detailed classification report."""
+        return classification_report(y_true, y_pred, labels=labels, output_dict=True)
