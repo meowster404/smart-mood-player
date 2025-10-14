@@ -193,7 +193,9 @@ The application includes built-in performance tracking:
 
 ## License 📄
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This is an original, self-made project created for educational and personal use. All rights reserved to the author.
+
+**Note**: This project is not licensed under any open-source license. If you're interested in using or modifying this code, please contact the author for permission.
 
 ## Acknowledgments 🙏
 
