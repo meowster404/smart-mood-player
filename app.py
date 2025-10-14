@@ -404,24 +404,47 @@ class SmartPlaylistFinder(ctk.CTk):
         # Clear previous results before starting new search
         self._clear_results_area()
 
-        # First detect mood using our trained model
+        # First detect mood using our trained ML model
         detected_mood = self.mood_detector.predict_mood(user_input)
-        print(f"Detected mood: {detected_mood}")  # Debug print
+        print(f"Detected mood: {detected_mood}")
 
-        # Get intent
+        # Get intent using enhanced intent detector
         intent_data = self.intent_detector.detect_intent(user_input)
         intent = intent_data.get("intent")
         entity = intent_data.get("entity")
 
-        # Log intent detection performance
+        # Enhanced logic: Use ML mood detection results
+        # If mood detection gives a clear result, prioritize it over pattern matching
+        if detected_mood and detected_mood.lower() not in ["neutral", "unknown", "error"]:
+            print(f"[ML] Using mood detection: {detected_mood}")
+            # Override intent to MoodSearch if we have a clear mood
+            intent = "MoodSearch"
+            entity = detected_mood.lower()
+        elif intent == "MoodSearch" and entity:
+            # Use pattern-matched mood if ML didn't detect anything clear
+            print(f"[PATTERN] Using pattern-matched mood: {entity}")
+            detected_mood = entity
+        else:
+            # For non-mood intents, use pattern matching as before
+            print(f"[PATTERN] Using intent detection: {intent} -> {entity}")
+
+        # Log mood detection performance (ML model accuracy)
+        # In a real system, you'd compare detected_mood with ground truth
+        mood_accuracy = 1.0 if detected_mood and detected_mood.lower() not in ["neutral", "unknown", "error"] else 0.5
+        performance_analyzer.log_mood_detection(
+            predicted_mood=detected_mood,
+            actual_mood=detected_mood  # Would compare with user feedback in real system
+        )
+
+        # Log intent detection performance (now includes ML mood detection)
         performance_analyzer.log_intent_detection(
             predicted_intent=intent,
             actual_intent=intent  # In a real system, you'd compare with ground truth
         )
 
-        # Enhanced Intent Handling
+        # Enhanced Intent Handling with ML integration
         print(f"[DEBUG] Input: '{user_input}'")
-        print(f"[DEBUG] Detected intent: '{intent}', entity: '{entity}'")  # Enhanced debug print
+        print(f"[DEBUG] ML Mood: '{detected_mood}', Intent: '{intent}', Entity: '{entity}'")
         
         # Check for greetings and general conversation first
         if intent in ["GREETING", "Greeting"]:
@@ -432,7 +455,7 @@ class SmartPlaylistFinder(ctk.CTk):
 
         # Check for help requests
         if intent == "Help":
-            help_message = "I can help you find music! Try saying things like:\n• 'I'm feeling happy' (for mood-based playlists)\n• 'Play Faded by Alan Walker' (for specific songs)\n• 'Find songs by Taylor Swift' (for artist tracks)\n• 'I want music for studying' (for activity playlists)"
+            help_message = "I can help you find music using AI-powered mood detection! Try saying things like:\n• 'I'm feeling happy' (AI analyzes your mood and finds matching music)\n• 'Play Faded by Alan Walker' (for specific songs)\n• 'Find songs by Taylor Swift' (for artist tracks)\n• 'I want music for studying' (for activity playlists)\n• Just express how you're feeling naturally!"
             self.add_message("Bot", help_message)
             self.send_button.configure(state="normal")
             return
@@ -494,8 +517,8 @@ class SmartPlaylistFinder(ctk.CTk):
             return
 
         elif intent == "MoodSearch":
-            print(f"Mood search detected: {entity}")
-            
+            print(f"Mood search detected with ML mood: {detected_mood}")
+
             # Test Spotify connection first
             print("[DEBUG] Testing Spotify connection...")
             from utils.enhanced_spotify_utils import get_spotify_client
@@ -507,44 +530,60 @@ class SmartPlaylistFinder(ctk.CTk):
                 return
             else:
                 print("[DEBUG] Spotify connection successful")
-            
-            # Provide empathetic chatbot responses for emotional statements
+
+            # Use the ML-detected mood for playlist search
+            mood_to_use = detected_mood.lower() if detected_mood else entity
+
+            # Provide ML-based empathetic responses for detected emotions
             mood_responses = {
                 "sad": [
-                    "I understand you're going through a difficult time. Music can be really healing - let me find some comforting songs that might help you feel better.",
-                    "I'm sorry you're feeling this way. Sometimes music can provide comfort when we need it most. Let me find some soothing tracks for you.",
-                    "It sounds like you're having a tough time. Music has a way of helping us process our emotions. I'll find some gentle, comforting music for you."
+                    "I can tell you're feeling down. Let me find some comforting music that might help lift your spirits.",
+                    "Music can be really healing when we're feeling low. Let me find some soothing tracks for you.",
+                    "I understand you're going through a difficult time. Let me find some gentle, comforting music for you."
                 ],
                 "happy": [
-                    "I'm glad you're feeling good! Let's keep those positive vibes going with some uplifting music!",
-                    "That's wonderful to hear! I'll find some great music to match your happy mood!"
+                    "I can sense your positive energy! Let me find some uplifting music to match your great mood!",
+                    "That's wonderful to hear! I'll find some fantastic music to keep those good vibes going!",
+                    "Your happiness is contagious! Let me find some joyful music to celebrate with you!"
                 ],
                 "angry": [
-                    "I can sense you're feeling frustrated. Music can be a great outlet for intense emotions. Let me find something that resonates with how you're feeling.",
-                    "It sounds like you're dealing with some strong emotions. Let me find some music that might help you work through this."
+                    "I can feel your frustration. Sometimes intense music can help process strong emotions. Let me find something that resonates with how you're feeling.",
+                    "It sounds like you're dealing with some intense emotions. Let me find some powerful music that might help you work through this.",
+                    "I can sense you're upset. Music can be a great outlet for strong feelings. Let me find something that matches your energy."
                 ],
                 "calm": [
-                    "I'll find some peaceful music that matches your calm state of mind.",
-                    "Let me find some relaxing music for you."
+                    "I can tell you're in a peaceful state of mind. Let me find some serene music that matches your calm energy.",
+                    "Your tranquility is beautiful. Let me find some peaceful music to complement your relaxed mood.",
+                    "I can sense your inner peace. Let me find some gentle, soothing music for you."
+                ],
+                "excited": [
+                    "I can feel your excitement! Let me find some energetic music to match your enthusiastic mood!",
+                    "Your energy is amazing! I'll find some upbeat, exciting music to fuel your enthusiasm!",
+                    "I love your positive energy! Let me find some thrilling music to keep you pumped up!"
+                ],
+                "tired": [
+                    "I can tell you're feeling weary. Let me find some gentle, relaxing music to help you unwind.",
+                    "You seem like you need some rest. Let me find some soothing, calming music for you.",
+                    "I can sense your fatigue. Let me find some peaceful music to help you relax and recharge."
                 ]
             }
-            
-            # Get appropriate response
-            responses = mood_responses.get(entity, ["Let me find some music that matches your mood."])
+
+            # Get appropriate response based on ML-detected mood
+            responses = mood_responses.get(mood_to_use, ["Let me find some music that matches how you're feeling."])
             response_message = responses[0]  # Use first response for now
-            
-            self.status_label.configure(text=f"Finding {entity} music...")
+
+            self.status_label.configure(text=f"Finding {mood_to_use} music based on your mood...")
             self.add_message("Bot", response_message)
             threading.Thread(
                 target=self.fetch_playlists_thread,
-                args=(entity,),
+                args=(mood_to_use,),
                 daemon=True
             ).start()
             return
 
         # For unrecognized intents, provide a helpful response
         if intent == "Chat":
-            fallback_response = "I'm not sure I understand. I'm here to help you find music! You can ask me to:\n• Find songs by an artist\n• Play a specific song\n• Get music for activities like studying or working out\n• Find music based on your mood"
+            fallback_response = "I'm not sure I understand, but I can use AI to analyze your mood! Try expressing how you're feeling, or ask me to:\n• Find songs by an artist\n• Play a specific song\n• Get music for activities like studying or working out\n• Just tell me how you're feeling and I'll find matching music!"
             self.add_message("Bot", fallback_response)
             self.send_button.configure(state="normal")
             return
@@ -626,42 +665,54 @@ class SmartPlaylistFinder(ctk.CTk):
 
     def fetch_playlists_thread(self, mood):
         try:
-            print(f"[DEBUG] Starting playlist search for mood: {mood}")
-            
+            print(f"[DEBUG] Starting ML-based playlist search for mood: {mood}")
+
             # Load emotion responses to get playlist suggestions
             emotion_responses_path = os.path.join(os.path.dirname(__file__), "data", "emotion_responses.json")
             print(f"[DEBUG] Loading emotion responses from: {emotion_responses_path}")
-            
+
             with open(emotion_responses_path, 'r') as f:
                 mood_data = json.load(f)["moods"]
             print(f"[DEBUG] Loaded mood data successfully")
 
-            # Map input mood to emotion category
+            # Enhanced emotion mapping for ML model outputs
             emotion_map = {
                 "sad": "sadness",
                 "sadness": "sadness",
+                "depressed": "sadness",
+                "unhappy": "sadness",
                 "happy": "joy",
                 "joy": "joy",
+                "excited": "joy",
+                "energetic": "joy",
                 "angry": "anger",
                 "anger": "anger",
+                "frustrated": "anger",
                 "calm": "neutral",
                 "neutral": "neutral",
-                "energetic": "joy",  # Map energetic to joy for upbeat music
-                "romantic": "neutral"  # Map romantic to neutral for calm music
+                "peaceful": "neutral",
+                "relaxed": "neutral",
+                "tired": "sadness",  # Map tired to sadness for mellow music
+                "fear": "sadness",   # Map fear to sadness for calming music
+                "surprise": "joy",   # Map surprise to joy for upbeat music
+                "disgust": "anger"   # Map disgust to anger for intense music
             }
+
+            # Map the input mood to emotion category
             emotion = emotion_map.get(mood.lower(), "neutral")
-            print(f"[DEBUG] Mapped mood '{mood}' to emotion '{emotion}'")
+            print(f"[DEBUG] Mapped ML mood '{mood}' to emotion '{emotion}'")
 
             # Get playlist keywords for the emotion
             if emotion in mood_data and "playlists" in mood_data[emotion]:
                 query = " ".join(mood_data[emotion]["playlists"])
-                print(f"[DEBUG] Using playlist keywords: {mood_data[emotion]['playlists']}")
+                print(f"[DEBUG] Using ML-enhanced playlist keywords: {mood_data[emotion]['playlists']}")
             else:
-                query = mood  # Fallback to using the mood directly
+                # Fallback: Use the original mood as search query
+                query = mood
                 print(f"[DEBUG] Using fallback query: {query}")
 
-            print(f"[DEBUG] Final search query: '{query}'")
-            
+            print(f"[DEBUG] Final ML-enhanced search query: '{query}'")
+
             # Get Spotify client
             print(f"[DEBUG] Getting Spotify client...")
             sp = get_spotify_client()
@@ -672,33 +723,44 @@ class SmartPlaylistFinder(ctk.CTk):
                 return
 
             print(f"[DEBUG] Spotify client obtained successfully")
-            
-            # Search for playlists
-            print(f"[DEBUG] Searching for playlists...")
+
+            # Search for playlists using ML-enhanced query
+            print(f"[DEBUG] Searching for playlists with ML-enhanced query...")
             playlists = search_for_playlists(sp, query)
             print(f"[DEBUG] Search completed. Found {len(playlists) if playlists else 0} playlists")
 
             if playlists:
-                print(f"[DEBUG] Sending {len(playlists)} playlists to UI")
+                print(f"[DEBUG] Sending {len(playlists)} ML-curated playlists to UI")
                 self.spotify_queue.put(("PLAYLISTS", playlists))
             else:
-                print(f"[DEBUG] No playlists found, trying fallback search...")
-                # Try a more generic search as fallback
-                fallback_query = "music"  # Very generic fallback
-                fallback_playlists = search_for_playlists(sp, fallback_query)
-                if fallback_playlists:
-                    print(f"[DEBUG] Found {len(fallback_playlists)} playlists with fallback query")
-                    self.spotify_queue.put(("PLAYLISTS", fallback_playlists))
+                print(f"[DEBUG] No playlists found, trying fallback searches...")
+
+                # Try multiple fallback strategies for better ML integration
+                fallback_queries = [
+                    f"{mood} music",
+                    f"{emotion} music",
+                    "mood music",
+                    "music"  # Very generic fallback
+                ]
+
+                for fallback_query in fallback_queries:
+                    if fallback_query != query:  # Don't repeat the same query
+                        print(f"[DEBUG] Trying fallback query: '{fallback_query}'")
+                        fallback_playlists = search_for_playlists(sp, fallback_query)
+                        if fallback_playlists:
+                            print(f"[DEBUG] Found {len(fallback_playlists)} playlists with fallback query")
+                            self.spotify_queue.put(("PLAYLISTS", fallback_playlists))
+                            break
                 else:
-                    print(f"[DEBUG] No playlists found even with fallback query")
-                    self.spotify_queue.put(("Error", f"I couldn't find any playlists for {mood} mood. Try a different mood!"))
+                    print(f"[DEBUG] No playlists found even with fallback queries")
+                    self.spotify_queue.put(("Error", f"I couldn't find any playlists for '{mood}' mood. Try expressing your feelings differently!"))
 
         except Exception as e:
-            error_msg = f"Error in fetch_playlists_thread: {str(e)}"
+            error_msg = f"Error in ML-enhanced playlist search: {str(e)}"
             print(f"[ERROR] {error_msg}")
             import traceback
             print(traceback.format_exc())
-            self.spotify_queue.put(("Error", "An error occurred while searching for playlists."))
+            self.spotify_queue.put(("Error", "An error occurred while searching for mood-based playlists."))
 
     def check_spotify_queue(self):
         try:
