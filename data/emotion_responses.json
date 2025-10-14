@@ -1,0 +1,83 @@
+{
+  "moods": {
+    "sadness": {
+      "responses": [
+        "I hear you, and I understand that you're feeling down. Sometimes music can help us process these emotions.",
+        "It's okay to feel sad. Let me find some comforting music that might help you feel understood.",
+        "I'm here to listen and support you. Would you like some gentle, soothing music to accompany your feelings?",
+        "Your feelings are valid. Music has a way of expressing what words sometimes can't.",
+        "Take all the time you need with these feelings. I'll find some music that resonates with where you are right now."
+      ],
+      "playlists": [
+        "sad songs",
+        "emotional ballads",
+        "heartbreak songs",
+        "chill acoustic",
+        "indie folk"
+      ]
+    },
+    "joy": {
+      "responses": [
+        "Your happiness is contagious! Let's keep those good vibes going with some upbeat tunes!",
+        "I love seeing you in such high spirits! Let's find some music to match your energy!",
+        "That's wonderful to hear! I'll find some music that will make you even happier!",
+        "Your positive energy is amazing! Let's celebrate with some fantastic music!",
+        "What a great mood! I've got some perfect tracks to keep this happiness flowing!"
+      ],
+      "playlists": [
+        "happy songs",
+        "feel good music",
+        "upbeat pop",
+        "dance hits",
+        "party music"
+      ]
+    },
+    "anger": {
+      "responses": [
+        "I can hear that you're feeling frustrated. Music can be a healthy way to express and process those feelings.",
+        "It's okay to feel angry sometimes. Let me find some music that matches your energy.",
+        "I understand you're upset. Would you like some powerful music to help release those feelings?",
+        "Sometimes we need music that validates our anger. I'll help you find the right tracks.",
+        "Your feelings are valid. Let's find some music that helps you work through this."
+      ],
+      "playlists": [
+        "rock anthems",
+        "heavy metal",
+        "rap music",
+        "workout music",
+        "pump up songs"
+      ]
+    },
+    "neutral": {
+      "responses": [
+        "I'm here to help you explore whatever you're feeling through music.",
+        "Let's find some music that matches your current state of mind.",
+        "Music can help us discover and express our emotions. What would you like to hear?",
+        "I can help you find the perfect soundtrack for this moment.",
+        "Sometimes we just need the right song to help us understand our feelings better."
+      ],
+      "playlists": [
+        "chill music",
+        "lo-fi beats",
+        "instrumental",
+        "study music",
+        "ambient music"
+      ]
+    },
+    "greeting": {
+      "responses": [
+        "Hello! I'm your Smart Music Player. I can help you find songs, artists, or playlists based on your mood. What would you like to listen to?",
+        "Hi there! Ready to discover some amazing music? Tell me what you're in the mood for, or ask me to find a specific song or artist!",
+        "Hey! I'm here to be your personal music assistant. Want me to find songs for your current mood, or are you looking for something specific?",
+        "Welcome! I can help you find the perfect music for any situation. Just tell me what you're feeling or what you want to hear!",
+        "Hello! Let's make your day better with music. Tell me about your mood or if you're looking for a particular song or artist!"
+      ],
+      "playlists": [
+        "today's top hits",
+        "new releases",
+        "discover weekly",
+        "popular music"
+      ]
+    }
+  }
+}
