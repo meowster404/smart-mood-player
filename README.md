@@ -193,9 +193,22 @@ The application includes built-in performance tracking:
 
 ## License 📄
 
-This is an original, self-made project created for educational and personal use. All rights reserved to the author.
+This project is released under a **Creative Commons Attribution License**.
 
-**Note**: This project is not licensed under any open-source license. If you're interested in using or modifying this code, please contact the author for permission.
+You are free to:
+- **Use** this code for any purpose (personal, educational, or commercial)
+- **Modify** and adapt the code as needed
+- **Share** your modifications with others
+
+**The only requirement is that you must give appropriate credit to the original author and mention that this is based on the Smart Music Player project.**
+
+### Attribution Format:
+```
+Based on "Smart Music Player" by [Your Name/Username]
+Original project: https://github.com/meowster404/smart-mood-player
+```
+
+**Note**: This is an educational project created to demonstrate music recommendation systems using NLP and the Spotify API. Feel free to learn from it and build upon it!
 
 ## Acknowledgments 🙏
 
