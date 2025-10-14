@@ -257,6 +257,8 @@ Original project: https://github.com/meowster404/smart-mood-player
 - CustomTkinter for the modern UI
 - NLTK and scikit-learn for NLP capabilities
 - The open-source community for various dependencies
+- [Simple Dialogs for Chatbot](https://www.kaggle.com/datasets/grafstor/simple-dialogs-for-chatbot) for conversational training data
+- [Emotion Detection in Text](https://github.com/SannketNikam/Emotion-Detection-in-Text) for emotion classification insights
 
 ---
 
