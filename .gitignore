@@ -207,9 +207,6 @@ test_/
 train_*.py
 training/
 
-# Workflow analysis (development only)
-workflow_analysis.py
-
 # PyPI configuration file
 .pypirc
 

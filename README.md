@@ -85,17 +85,16 @@ cd smart-mood-player
 pip install -r requirements.txt
 ```
 
-### 4. Set Up Spotify API Credentials
+### 4. Set Up Environment Variables
 
-1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Create a new app or use an existing one
-3. Copy your Client ID and Client Secret
-4. Create a `.env` file in the project root with the following content:
-
-```env
-SPOTIFY_CLIENT_ID=your_client_id_here
-SPOTIFY_CLIENT_SECRET=your_client_secret_here
-```
+1. Copy the example file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` and fill in your actual values:
+   ```bash
+   nano .env  # or use your preferred editor
+   ```
 
 ### 5. Train the Models (Optional)
 
@@ -113,10 +112,13 @@ python training/train_intent_detector.py
 python training/train_chatbot.py
 ```
 
-### 6. Run the Application
+### 6. Run Analytical Reports (Optional)
+
+To evaluate model accuracy and generate reports:
 
 ```bash
-python app.py
+cd analysis
+python run_all_analysis.py
 ```
 
 ## Usage Examples 💬
@@ -129,8 +131,6 @@ python app.py
 ### Mood-based Search
 - "I'm feeling happy today"
 - "Need some relaxing music"
-- "Music for working out"
-
 ### Activity-based Search
 - "Music for studying"
 - "Songs for workout"
